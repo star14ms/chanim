@@ -6,10 +6,14 @@ from manim.utils.tex import TexTemplate
 
 
 class ChemTemplate(TexTemplate):
-    def __init__(self,**kwargs):
+    def __init__(self, premables=[], **kwargs):
         super().__init__(**kwargs)
+        self.tex_compiler = "pdflatex"
+        self.output_format = ".pdf"
         self.add_to_preamble("\\usepackage{chemfig}")
-
+        
+        for premable in premables:
+            self.add_to_preamble(premable)
 
     def set_chemfig(
         self,
@@ -22,8 +26,41 @@ class ChemTemplate(TexTemplate):
         node_style:str="",
         bond_style:str="",
     ):
-        set_chemfig = "\\setchemfig{atom sep=%s,chemfig style=%s, atom style=%s,angle increment=%d,bond offset=%s,double bond sep=%s, node style=%s, bond style=%s}" % (atom_sep,chemfig_style,atom_style,angle_increment,bond_offset,double_bond_sep,node_style,bond_style)
+        self.atom_sep = atom_sep
+        self.chemfig_style = chemfig_style
+        self.atom_style = atom_style
+        self.angle_increment = angle_increment
+        self.bond_offset = bond_offset
+        self.double_bond_sep = double_bond_sep
+        self.node_style = node_style
+        self.bond_style = bond_style
+
+        set_chemfig = self.create_chemfig_settings()
         self.add_to_preamble(set_chemfig)
+
+    def create_chemfig_settings(self):
+        settings = {
+            "atom sep": self.atom_sep,
+            "chemfig style": self.chemfig_style,
+            "atom style": self.atom_style,
+            "angle increment": self.angle_increment,
+            "bond offset": self.bond_offset,
+            "double bond sep": self.double_bond_sep,
+            "node style": self.node_style,
+            "bond style": self.bond_style,
+        }
+        
+        # Build the LaTeX command string, excluding empty settings
+        set_chemfig_parts = []
+        for key, value in settings.items():
+            if value:  # Only add setting if it has a non-empty value
+                if isinstance(value, int):  # Handle integers differently
+                    set_chemfig_parts.append(f"{key}={value}")
+                else:
+                    set_chemfig_parts.append(f"{key}={{{value}}}")  # Wrap strings in braces
+
+        set_chemfig_command = "\\setchemfig{" + ", ".join(set_chemfig_parts) + "}"
+        return set_chemfig_command
 
 
 class ChemReactionTemplate(TexTemplate):

@@ -52,6 +52,7 @@ class ChemObject(MathTex):
     def __init__(
         self,
         chem_code: str,
+        chemfig_params: dict,
         atom_sep: str = "2em",  ## all of these are the defaults in chemfig
         chemfig_style: str = "",
         atom_style: str = "",
@@ -76,12 +77,21 @@ class ChemObject(MathTex):
             node_style=node_style,
             bond_style=bond_style,
         )
+        chemfig_params = self.parse_chemfig_params(chemfig_params)
+
         super().__init__(
-            "\\chemfig{%s}" % chem_code,
+            "\\chemfig[%s]{%s}" % (chemfig_params, chem_code),
             stroke_width=stroke_width,
             tex_template=self.template,
+            tex_environment=None,
             **kwargs,
         )
+        
+    def parse_chemfig_params(self, chemfig_params: dict):
+        """
+        Parses the chemfig parameters and returns the string to be used in the chemfig command.
+        """
+        return ",".join([f"{key}={val}" for key, val in chemfig_params.items()])
 
     def set_ion_position(
         self, string_number=0, e_index=0, final_atom_index=1, direction=LEFT
@@ -541,17 +551,17 @@ class ChemWithName(VMobject):
 
 
     def __init__(
-        self, chem, name, name_direction=DOWN, label_constructor=Tex, buff=1, **kwargs
+        self, chem, name, name_direction=DOWN, label_constructor=Tex, buff=1, chemfig_params={}, **kwargs
     ):
 
-        super().__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
         if isinstance(
             chem, (ChemObject, ComplexChemIon, ComplexChemCompound, ChemAbove)
         ):
             self.chem = chem
         else:
-            self.chem = ChemObject(chem, **kwargs)
+            self.chem = ChemObject(chem, chemfig_params, **kwargs)
 
         if isinstance(name, label_constructor):
             self.name = name
@@ -672,7 +682,7 @@ class BondBreak(DashedLine):
     #     "length": 0.7,
     # }
 
-    def __init__(self, bond: TexSymbol, length=0.7, **kwargs):
+    def __init__(self, bond, length=0.7, **kwargs):
         # digest_config(self, kwargs)
         start = bond.get_center() + (length / 2) * DOWN
         end = start + length * UP
