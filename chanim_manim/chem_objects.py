@@ -21,12 +21,79 @@ from manim.mobject.geometry.arc import Dot
 from manim.utils.color import YELLOW
 from manim._config import logger
 
+### custom imports
+from manim.constants import DOWN
+from manim import SVGMobject, VMobject, Tex
+from chanim.chem_objects import ComplexChemIon, ComplexChemCompound, ChemAbove
+
+import svgelements as se
+
 from manim_custom.mobject.text.tex_mobject import MathTexPdf2Svg
+from .utils import orthogonal_line_points
 
 
 def check_if_instance_change_if_not(obj, instance_of):
     if not isinstance(obj, instance_of):
         obj = instance_of(obj)
+
+
+def get_mobjects_from(self: SVGMobject, svg: se.SVG, n_lines: int = 6) -> list[VMobject]:
+    """Convert the elements of the SVG to a list of mobjects.
+    Parameters
+    ----------
+    svg
+        The parsed SVG file.
+    """
+    result = []
+    # from rich import print
+    # print(self.file_name)
+    for shape in svg.elements():
+        # print(shape.__class__.__name__, len(shape))
+        if isinstance(shape, se.Group):
+            continue
+        elif isinstance(shape, se.Path):
+            if shape.values.get('stroke-dasharray', None) is not None:
+                # line = se.Line(shape._segments[1].start, shape._segments[1].end)
+                # (line.x1, line.y1), (line.x2, line.y2) = shape._segments[1].start, shape._segments[1].end
+                # mob = self.line_to_mobject(line)
+                # result.append(mob)
+                for i in range(n_lines):
+                    points = orthogonal_line_points(*shape._segments[1].start, *shape._segments[1].end, 6.43427*((n_lines-i)/n_lines), i*(1/n_lines))
+                    line = se.Line(shape._segments[1].start, shape._segments[1].end)
+                    (line.x1, line.y1), (line.x2, line.y2) = points
+                    mob = self.line_to_mobject(line)
+                    result.append(mob)
+                continue
+            else:
+                mob = self.path_to_mobject(shape)
+        elif isinstance(shape, se.SimpleLine):
+            mob = self.line_to_mobject(shape)
+        elif isinstance(shape, se.Rect):
+            mob = self.rect_to_mobject(shape)
+        elif isinstance(shape, (se.Circle, se.Ellipse)):
+            mob = self.ellipse_to_mobject(shape)
+        elif isinstance(shape, se.Polygon):
+            mob = self.polygon_to_mobject(shape)
+        elif isinstance(shape, se.Polyline):
+            mob = self.polyline_to_mobject(shape)
+        elif isinstance(shape, se.Text):
+            mob = self.text_to_mobject(shape)
+        elif isinstance(shape, se.Use) or type(shape) is se.SVGElement:
+            continue
+        else:
+            logger.warning(f"Unsupported element type: {type(shape)}")
+            continue
+        if mob is None:
+            continue
+        self.apply_style_to_mobject(mob, shape)
+        if shape.apply:
+            self.handle_transform(mob, shape.transform)
+        result.append(mob)
+
+    return result
+
+
+SingleStringMathTex.get_mobjects_from = get_mobjects_from
 
 
 class ChemObject(MathTexPdf2Svg):
@@ -82,7 +149,7 @@ class ChemObject(MathTexPdf2Svg):
         )
 
         super().__init__(
-            "\\chemfig{%s}" % (chemfig_params, chem_code),
+            "\\chemfig[%s]{%s}" % (chemfig_params, chem_code),
             stroke_width=stroke_width,
             tex_template=self.template,
             tex_environment=None,
@@ -100,6 +167,37 @@ class ChemObject(MathTexPdf2Svg):
         self[string_number][e_index].move_to(
             self[final_atom_index].get_edge_center(direction) + direction * 0.2
         )
+
+    def _break_up_by_substrings(self):
+        """
+        Reorganize existing submobjects one layer
+        deeper based on the structure of tex_strings (as a list
+        of tex_strings)
+        """
+        new_submobjects = []
+        curr_index = 0
+        for tex_string in self.tex_strings:
+            sub_tex_mob = SingleStringMathTex(
+                tex_string,
+                tex_environment=self.tex_environment,
+                tex_template=self.tex_template,
+            )
+            num_submobs = len(sub_tex_mob.submobjects)
+            new_index = (
+                curr_index + num_submobs + len("".join(self.arg_separator.split()))
+            )
+            if num_submobs == 0:
+                last_submob_index = min(curr_index, len(self.submobjects) - 1)
+                sub_tex_mob.move_to(self.submobjects[last_submob_index], RIGHT)
+            else:
+                sub_tex_mob.submobjects = self.submobjects[curr_index:new_index]
+            new_submobjects.append(sub_tex_mob)
+            curr_index = new_index
+        self.submobjects = new_submobjects
+        return self
+
+
+ChemObject.get_mobjects_from = get_mobjects_from
 
 
 class OpenGLChemObject(MathTexPdf2Svg):
