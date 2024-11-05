@@ -58,7 +58,7 @@ def get_mobjects_from(self: SVGMobject, svg: se.SVG, n_lines: int = 6) -> list[V
                 # mob = self.line_to_mobject(line)
                 # result.append(mob)
                 for i in range(n_lines):
-                    points = orthogonal_line_points(*shape._segments[1].start, *shape._segments[1].end, 6.43427*((n_lines-i)/n_lines), i*(1/n_lines))
+                    points = orthogonal_line_points(*shape._segments[1].start, *shape._segments[1].end, 6.43427*((i+1)/n_lines), i*(1/n_lines))
                     line = se.Line(shape._segments[1].start, shape._segments[1].end)
                     (line.x1, line.y1), (line.x2, line.y2) = points
                     mob = self.line_to_mobject(line)

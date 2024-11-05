@@ -34,11 +34,11 @@ molecules = [
     ('pyruvate',),
 ]
 mmolecules = [
-    ChemWithName("*6((>HO)-(>:OH)-(>OH)-(>:OH)-(>C-[:150]HO)-O-)", "glucose", premables=['\hflipnext']),
-    ChemWithName("*6((>HO)-(>:OH)-(>OH)-(>:OH)-(>C-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)", "glucose-6-phosphate", premables=['\hflipnext']),
+    ChemWithName("*6((<HO)-(<:OH)-(<OH)-(<:OH)-(<-[:150]HO)-O-)", "glucose", premables=['\hflipnext']),
+    ChemWithName("*6((<HO)-(<:OH)-(<OH)-(<:OH)-(<-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)", "glucose-6-phosphate", premables=['\hflipnext']),
 ]
 
-substrings_to_isolate = ['glucose', 'fructose', 'phosphate', 'phospho', 'glycer', 'pyruvate']
+substrings_to_isolate = ['glucose', 'fructose', 'phosphate', 'phospho', 'glycer', 'pyruvate', 'A', 'T', 'P', 'D']
 
 enzymes = [
     'hexokinase',
