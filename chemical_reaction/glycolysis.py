@@ -36,6 +36,8 @@ molecules = [
 mmolecules = [
     ChemWithName("*6((<HO)-(<:OH)-(<OH)-(<:OH)-(<-[:150]HO)-O-)", "glucose", premables=['\hflipnext']),
     ChemWithName("*6((<HO)-(<:OH)-(<OH)-(<:OH)-(<-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)", "glucose-6-phosphate", premables=['\hflipnext']),
+    ChemWithName("[:18]*5((<-[:198,,,,line width=7pt]HO)(<:HO)-(<OH)-(<:OH)-(<-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)", "fructose-6-phosphate", premables=['\hflipnext']),
+    ChemWithName("[:18]*5((<-[:198,,,,line width=7pt]O-[:180]P(-[:90]O)(=[:-90]O)-[:180]O)(<:HO)-(<OH)-(<:OH)-(<-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)", "fructose-1,6-bisphosphate", premables=['\hflipnext']),
 ]
 
 substrings_to_isolate = ['glucose', 'fructose', 'phosphate', 'phospho', 'glycer', 'pyruvate', 'A', 'T', 'P', 'D']
@@ -79,7 +81,7 @@ for i, (molecule, mmolecule) in enumerate(zip(molecules, mmolecules)):
 
     globals()[class_name] = type(class_name, (SceneCairo,), {'construct': construct_chemobject})
     globals()[class_name].chem_object = mmolecule
-    globals()[class_name].add_numbering = False
+    globals()[class_name].add_numbering = True
     globals()[class_name].animation = False
 
 def create_class(title, base_class, files_path, molecules, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate):

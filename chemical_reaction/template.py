@@ -1,15 +1,18 @@
 # Main Command: manim chemical_reaction/glycolysis.py Glycolysis
 from manim import Scene, config
 from manim import *
+from manim.mobject.geometry.line import Line
 from manim.animation.transform_matching_parts import TransformMatchingAbstractBase
 from chanim_manim import *
 
 from collections import defaultdict, Counter
-from svgelements.svgelements import Line
 from copy import deepcopy
 from rich import print
 import numpy as np
 import math
+
+
+n_points_threshold_as_bond = 16
 
 
 def match_atoms(atoms1, atoms2, atom1_idx, atom2_idx, atoms1_counters, atoms2_counters, depth=1):
@@ -401,8 +404,13 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         transform_mismatches: bool = False,
         fade_transform_mismatches: bool = False,
         key_map: dict | None = None,
+        error_tolerance: float = 0.1,
+        min_ratio_to_accept_match: float = 0.25,
         **kwargs,
     ):
+        self.error_tolerance = error_tolerance
+        self.min_ratio_to_accept_match = min_ratio_to_accept_match
+
         if isinstance(mobject, VMobject):
             group_type = VGroup
         else:
@@ -488,7 +496,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         for mobject in self.get_mobject_parts(mobject):
             n_points = len(mobject.points)
 
-            key = ('atom_' if n_points > 8 else '') + str(id_shape_map) # not isinstance(mobject.path_obj[1], Line)
+            key = ('atom_' if n_points > n_points_threshold_as_bond else '') + str(id_shape_map)
             shape_map[key] = mobject
             id_shape_map += 1
 
@@ -519,6 +527,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
 
         # match mobjects based on possible distances
         key_maps = []
+        key_map_max_matching = {}
 
         print('n_possible_distances', len(distances_between_identical_mobjects))
         for distance_xyz_identical in distances_between_identical_mobjects:
@@ -526,29 +535,62 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         
             for key_source, mobject_source in source_map.items():
                 n_points = len(mobject_source.points)
+                # print(key_source, n_points)
 
                 if key_source in key_map:
                     continue
 
                 for key_target, mobject_target in target_map.items():
-                    if key_target in key_map.values():
+                    if key_target in key_map.values() or type(mobject_target) != type(mobject_source):
                         continue
 
                     distance_xyz = mobject_target.get_center() - mobject_source.get_center()
 
-                    # if key_source == 'atom_20' and key_target == 'atom_20':
+                    # if key_source == '26' and key_target == '27':
                     #     print(' '.join(map(lambda x: '%.6f' % x, mobject_target.get_center() - mobject_source.get_center())))
-                    #     breakpoint()
 
-                    if len(mobject_target.points) == n_points and len(mobject_target.path_obj) == len(mobject_source.path_obj) and \
-                        ((n_points in identical_n_points) or (abs(distance_xyz[0] - distance_xyz_identical[0]) <= 0.0001 and abs(distance_xyz[1] - distance_xyz_identical[1]) <= 0.0001 and abs(distance_xyz[2] - distance_xyz_identical[2]) <= 0.0001)): 
+                    if len(mobject_target.points) == n_points and (isinstance(mobject_target, Line) or (len(mobject_target.path_obj) == len(mobject_source.path_obj))) and \
+                        ((n_points in identical_n_points) or (abs(distance_xyz[0] - distance_xyz_identical[0]) <= self.error_tolerance and abs(distance_xyz[1] - distance_xyz_identical[1]) <= self.error_tolerance and abs(distance_xyz[2] - distance_xyz_identical[2]) <= self.error_tolerance)): 
                         # print(len(mobject_target.points), not isinstance(mobject_source.path_obj[1], Line))
                         key_map[key_source] = key_target
                         break
-                    
-            key_map_max_matching = max(key_maps, key=len) if len(key_maps) != 0 else {}
+            
+            key_map_dashed_cram = defaultdict(dict)
+            source_dashed_cram = defaultdict(list)
+            target_dashed_cram = defaultdict(list)
 
-            if len(key_map_max_matching) >= 0.7 * len(source_map) or not only_using_identical_distances:
+            for key_source in source_map:
+                if id_dashed_cram := source_map[key_source].__dict__.get('id_dashed_cram', None):
+                    source_dashed_cram[id_dashed_cram].append(key_source)
+                
+            for key_target in target_map:
+                if id_dashed_cram := target_map[key_target].__dict__.get('id_dashed_cram', None):
+                    target_dashed_cram[id_dashed_cram].append(key_target)
+            
+            for source_id_dashe_cram, key_sources in source_dashed_cram.items():
+                for target_id_dashe_cram, key_targets in target_dashed_cram.items():
+                        distances = []
+                        for points_source, points_target in zip(source_map[key_sources[0]].points, target_map[key_targets[0]].points):
+                            distances.append(np.sqrt(sum((x ** 2 for x in points_source - points_target))))
+                        distance_mean = np.mean(distances)
+                        key_map_dashed_cram[source_id_dashe_cram][target_id_dashe_cram] = distance_mean
+            
+            while len(key_map_dashed_cram) != 0:
+                source_key_min_distance = min(key_map_dashed_cram, key=lambda x: min(key_map_dashed_cram[x].values()))
+                target_key_min_distance = min(key_map_dashed_cram[source_key_min_distance], key=key_map_dashed_cram[source_key_min_distance].get)
+                
+                for key_source, key_target in zip(source_dashed_cram[source_key_min_distance], target_dashed_cram[target_key_min_distance]):
+                    key_map[key_source] = key_target
+
+                key_map_dashed_cram.pop(source_key_min_distance)
+                for key in key_map_dashed_cram:
+                    key_map_dashed_cram[key].pop(target_key_min_distance, None)
+
+            matching_ratio = len(key_map) / len(source_map)
+
+            if matching_ratio >= self.min_ratio_to_accept_match or not only_using_identical_distances:
+                key_map_extended = defaultdict(dict)
+
                 for key_source, mobject_source in source_map.items():
                     n_points = len(mobject_source.points)
 
@@ -556,16 +598,38 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
                         continue
 
                     for key_target, mobject_target in target_map.items():
-                        if key_target in key_map.values():
+                        if key_target in key_map.values() or type(mobject_target) != type(mobject_source):
                             continue
 
-                        if len(mobject_target.points) == n_points and len(mobject_target.path_obj) == len(mobject_source.path_obj):
-                            key_map[key_source] = key_target
-                            break
+                        if len(mobject_target.points) == n_points and (
+                            (isinstance(mobject_target, Line)) or len(mobject_target.path_obj) == len(mobject_source.path_obj)
+                        ):
+                            distance_xyz = mobject_target.get_center() - mobject_source.get_center()
+                            distance_xyz = np.sqrt(sum((x ** 2 for x in distance_xyz)))
+                            key_map_extended[key_source][key_target] = distance_xyz
+                            # if key_source == '19' and key_target == '20':
+                            #     breakpoint()
+                            
+                # print(key_map_extended)
+                
+                while len(key_map_extended) != 0:
+                    source_key_min_distance = min(key_map_extended, key=lambda x: min(key_map_extended[x].values()))
+                    target_key_min_distance = min(key_map_extended[source_key_min_distance], key=key_map_extended[source_key_min_distance].get)
+                    key_map[source_key_min_distance] = target_key_min_distance
+                    key_map_extended.pop(source_key_min_distance)
+                    
+                    for key in key_map_extended.copy():
+                        key_map_extended[key].pop(target_key_min_distance, None)
                         
+                        if len(key_map_extended[key]) == 0:
+                            key_map_extended.pop(key)
+
             key_maps.append(key_map)
 
-        if len(key_map_max_matching) >= 0.7 * len(source_map) or not only_using_identical_distances:
+        key_map_max_matching = max(key_maps, key=len) if len(key_maps) != 0 else {}
+        # print(len(key_map_max_matching), len(source_map), len(target_map))
+
+        if len(key_map_max_matching) >= self.min_ratio_to_accept_match * len(source_map) or not only_using_identical_distances:
             return key_map_max_matching if len(key_map_max_matching) != 0 else None
         else:
             return self.get_key_map(source_map, target_map, only_using_identical_distances=False)
@@ -701,7 +765,7 @@ def construct_chemobject(self):
                 MarkupText(str(id_shape_map))
                 .scale(0.5)
                 .move_to(mobject.get_center())
-                .set_color(RED if len(mobject.points) > 8 else GREEN)
+                .set_color(RED if len(mobject.points) > n_points_threshold_as_bond else GREEN)
             )
         
         id_shape_map += 1

@@ -47,6 +47,7 @@ def get_mobjects_from(self: SVGMobject, svg: se.SVG, n_lines: int = 6) -> list[V
     result = []
     # from rich import print
     # print(self.file_name)
+    id_dashed_cram = 0
     for shape in svg.elements():
         # print(shape.__class__.__name__, len(shape))
         if isinstance(shape, se.Group):
@@ -57,12 +58,15 @@ def get_mobjects_from(self: SVGMobject, svg: se.SVG, n_lines: int = 6) -> list[V
                 # (line.x1, line.y1), (line.x2, line.y2) = shape._segments[1].start, shape._segments[1].end
                 # mob = self.line_to_mobject(line)
                 # result.append(mob)
+                # print(id_dashed_cram)
                 for i in range(n_lines):
                     points = orthogonal_line_points(*shape._segments[1].start, *shape._segments[1].end, 6.43427*((i+1)/n_lines), i*(1/n_lines))
                     line = se.Line(shape._segments[1].start, shape._segments[1].end)
                     (line.x1, line.y1), (line.x2, line.y2) = points
                     mob = self.line_to_mobject(line)
+                    mob.id_dashed_cram = id_dashed_cram
                     result.append(mob)
+                id_dashed_cram += 1
                 continue
             else:
                 mob = self.path_to_mobject(shape)
