@@ -21,13 +21,15 @@ from manim.mobject.geometry.arc import Dot
 from manim.utils.color import YELLOW
 from manim._config import logger
 
+from manim_custom.mobject.text.tex_mobject import MathTexPdf2Svg
+
 
 def check_if_instance_change_if_not(obj, instance_of):
     if not isinstance(obj, instance_of):
         obj = instance_of(obj)
 
 
-class ChemObject(MathTex):
+class ChemObject(MathTexPdf2Svg):
     """
     `chanimlib.chem_objects.ChemObject`
 
@@ -52,7 +54,8 @@ class ChemObject(MathTex):
     def __init__(
         self,
         chem_code: str,
-        chemfig_params: dict,
+        premables: list = [],
+        chemfig_params: dict = {},
         atom_sep: str = "2em",  ## all of these are the defaults in chemfig
         chemfig_style: str = "",
         atom_style: str = "",
@@ -66,7 +69,7 @@ class ChemObject(MathTex):
         **kwargs,
     ):
         # digest_config(self, kwargs)
-        self.template: ChemTemplate = tex_template()
+        self.template: ChemTemplate = tex_template(premables)
         self.template.set_chemfig(
             atom_sep=atom_sep,
             chemfig_style=chemfig_style,
@@ -77,21 +80,14 @@ class ChemObject(MathTex):
             node_style=node_style,
             bond_style=bond_style,
         )
-        chemfig_params = self.parse_chemfig_params(chemfig_params)
 
         super().__init__(
-            "\\chemfig[%s]{%s}" % (chemfig_params, chem_code),
+            "\\chemfig{%s}" % (chemfig_params, chem_code),
             stroke_width=stroke_width,
             tex_template=self.template,
             tex_environment=None,
             **kwargs,
         )
-        
-    def parse_chemfig_params(self, chemfig_params: dict):
-        """
-        Parses the chemfig parameters and returns the string to be used in the chemfig command.
-        """
-        return ",".join([f"{key}={val}" for key, val in chemfig_params.items()])
 
     def set_ion_position(
         self, string_number=0, e_index=0, final_atom_index=1, direction=LEFT
@@ -106,7 +102,7 @@ class ChemObject(MathTex):
         )
 
 
-class OpenGLChemObject(MathTex):
+class OpenGLChemObject(MathTexPdf2Svg):
     """
     `chanimlib.chem_objects.ChemObject`
 
@@ -175,7 +171,7 @@ class OpenGLChemObject(MathTex):
         )
 
 
-class ComplexChemIon(MathTex):
+class ComplexChemIon(MathTexPdf2Svg):
     """
     Mono-ionic Complexes
     """
@@ -192,7 +188,7 @@ class ComplexChemIon(MathTex):
     ):
         # digest_config(self, kwargs)
         self.comp = "\chemleft[\chemfig{" + chem_code + "}\chemright]^{%s}" % charge
-        MathTex.__init__(
+        MathTexPdf2Svg.__init__(
             self,
             self.comp,
             stroke_width=stroke_width,
@@ -201,7 +197,7 @@ class ComplexChemIon(MathTex):
         )
 
 
-class ComplexChemCompound(MathTex):
+class ComplexChemCompound(MathTexPdf2Svg):
     """
     Di-ionic Complexes
     """
@@ -226,7 +222,7 @@ class ComplexChemCompound(MathTex):
         elif isinstance(anion, ChemObject):
             anion = anion.tex_strings[0]
 
-        MathTex.__init__(self, cation, anion, stroke_width=stroke_width, **kwargs)
+        MathTexPdf2Svg.__init__(self, cation, anion, stroke_width=stroke_width, **kwargs)
 
 
 ## IT'S BWOKEN!! *sob*
@@ -480,7 +476,7 @@ class Reaction(Tex):
         return anim_group
 
 
-class ChemArrow(MathTex):
+class ChemArrow(MathTexPdf2Svg):
     """
     Chemical Reaction Arrow
     =======================
@@ -522,7 +518,7 @@ class ChemArrow(MathTex):
             arrow_angle=angle, arrow_length=length, arrow_style=style
         )
         arrow = "\\arrow{%s[%s][%s]}" % (mode.value, text_up, text_down)
-        MathTex.__init__(
+        MathTexPdf2Svg.__init__(
             self,
             arrow,
             stroke_width=stroke_width,
@@ -551,7 +547,7 @@ class ChemWithName(VMobject):
 
 
     def __init__(
-        self, chem, name, name_direction=DOWN, label_constructor=Tex, buff=1, chemfig_params={}, **kwargs
+        self, chem, name, name_direction=DOWN, label_constructor=Tex, buff=1, premables=[], chemfig_params={}, **kwargs
     ):
 
         super().__init__(**kwargs)
@@ -561,7 +557,7 @@ class ChemWithName(VMobject):
         ):
             self.chem = chem
         else:
-            self.chem = ChemObject(chem, chemfig_params, **kwargs)
+            self.chem = ChemObject(chem, premables, chemfig_params, **kwargs)
 
         if isinstance(name, label_constructor):
             self.name = name
@@ -649,7 +645,7 @@ class ReactionVGroup(VGroup):
 
     def get_side_of_equation(self, iterableable):
         # A = [
-        #     *(Participant, MathTex("+")) if Participant != iterableable[-1]
+        #     *(Participant, MathTexPdf2Svg("+")) if Participant != iterableable[-1]
         #     else Participant
         #     for Participant in iterableable
         # ]
@@ -657,7 +653,7 @@ class ReactionVGroup(VGroup):
         A = []
         for Part in iterableable:
             if Part != iterableable[-1]:
-                A.extend([ChemObject(Part), MathTex("+")])
+                A.extend([ChemObject(Part), MathTexPdf2Svg("+")])
             else:
                 A.append(ChemObject(Part))
         return A
