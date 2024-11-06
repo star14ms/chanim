@@ -417,10 +417,9 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
 
         source_map = self.get_shape_map(mobject)
         target_map = self.get_shape_map(target_mobject)
-        key_map = self.get_key_map(source_map, target_map)
 
         if key_map is None:
-            key_map = {}
+            key_map = self.get_key_map(source_map, target_map) or {}
 
         # Create two mobjects whose submobjects all match each other
         # according to whatever keys are used for source_map and
@@ -436,24 +435,36 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         # into another despite not matching by using key_map
         key_mapped_source = group_type()
         key_mapped_target = group_type()
+        
+        all_keys_source = [str(submob.key) for submob in mobject[0]]
+        source_map_values = list(source_map.values())
         # print(source_map)
         # print(target_map)
         # print(key_map)
         for key1, key2 in key_map.items():
+            key1, key2 = str(key1), str(key2)
             # print(key1, key1 in source_map, key2, key2 in target_map)
-            if key1 in source_map and key2 in target_map:
-                key_mapped_source.add(source_map[key1])
-                key_mapped_target.add(target_map[key2])
-                source_map.pop(key1, None)
+            if (key1 in all_keys_source) and (key2 in target_map or 'atom_' + key2 in target_map):
+                key2 = key2 if key2 in target_map else 'atom_' + key2
+                source_mob = filter(lambda x: str(x.key) == key1, source_map_values).__next__()
+                target_mob = target_map[key2]
+
+                # key_mapped_source.add(source_map[key1])
+                key_mapped_source.add(source_mob)
+                key_mapped_target.add(target_mob)
+                
+                index = str(list(source_map_values).index(source_mob))
+                key1_ = index if 'atom' not in key2 else 'atom_' + index
+                source_map.pop(key1_, None)
                 target_map.pop(key2, None)
                 
-                sub_idx = 1
-                while key1 + '-' + str(sub_idx) in source_map and key2 + '-' + str(sub_idx) in target_map:
-                    key_mapped_source.add(source_map[key1 + '-' + str(sub_idx)])
-                    key_mapped_target.add(target_map[key2 + '-' + str(sub_idx)])
-                    source_map.pop(key1 + '-' + str(sub_idx), None)
-                    target_map.pop(key2 + '-' + str(sub_idx), None)
-                    sub_idx += 1
+                # sub_idx = 1
+                # while key1 + '-' + str(sub_idx) in source_map and key2 + '-' + str(sub_idx) in target_map:
+                #     key_mapped_source.add(source_map[key1 + '-' + str(sub_idx)])
+                #     key_mapped_target.add(target_map[key2 + '-' + str(sub_idx)])
+                #     source_map.pop(key1 + '-' + str(sub_idx), None)
+                #     target_map.pop(key2 + '-' + str(sub_idx), None)
+                #     sub_idx += 1
 
         if len(key_mapped_source) > 0:
             anims.append(
@@ -756,7 +767,7 @@ class SceneCairo(Scene):
 
 def construct_chemobject(self):
     name, chemcode = self.chemcodes[-1]
-    chem_object = ChemWithName(chemcode, name) 
+    chem_object = ChemWithName(chemcode, name)
 
     numbering = VGroup()
 
@@ -903,11 +914,13 @@ def construct_chemobject_animation(self, verbose=False):
                     prev_molecule_partial = ChemObject(self.molecules[i][0][1]).scale(0.8).next_to(prev_molecule, ORIGIN)
                     
                     ids_to_remove = sorted([*prev_molecule_part['atoms'], *prev_molecule_part['bonds']], reverse=True)
+                    
+                    for n in range(len(prev_molecule_partial.submobjects[0].submobjects)):
+                        prev_molecule_partial.submobjects[0].submobjects[n].key = n
 
                     for id_to_remove in ids_to_remove:
                         prev_molecule_partial.submobjects[0].submobjects.pop(id_to_remove)
-                        
-                    prev_molecule_partial.submobjects
+
                     prev_molecules_partial.append(prev_molecule_partial)
                     animations1.append(FadeIn(prev_molecule_partial))
 
@@ -928,11 +941,13 @@ def construct_chemobject_animation(self, verbose=False):
 
                 print('Matching molecules | Reactant: [yellow]{}[/yellow], Product: [yellow]{}[/yellow]'.format(prev_title.tex_string, next_title.tex_string))
                 if len(prev_molecules) == 1 and prev_molecule_parts_to_separate:
-                    # key_map = match_molecules(prev_molecules_partial[j], next_molecule, limited_part=prev_molecule_parts_to_separate[j], verbose=verbose)
-                    animations2.append(TransformMatchingShapesSameLocation(prev_molecules_partial[j], next_molecule)) # , key_map=key_map
+                    if key_map := self.key_maps.get(prev_title.tex_string, None):
+                        key_map = key_map.get(next_title.tex_string, None)
+                    animations2.append(TransformMatchingShapesSameLocation(prev_molecules_partial[j], next_molecule, key_map=key_map))
                 else:
-                    # key_map = match_molecules(prev_molecule, next_molecule, limited_part=None, verbose=verbose)
-                    animations2.append(TransformMatchingShapesSameLocation(prev_molecule, next_molecule)) # , key_map=key_map
+                    if key_map := self.key_maps.get(prev_title.tex_string, None):
+                        key_map = key_map.get(next_title.tex_string, None)
+                    animations2.append(TransformMatchingShapesSameLocation(prev_molecule, next_molecule, key_map=key_map))
 
         if len(byreaction) > 0 and len(byreaction[0]) != 0:
             for byreactant, byproduct in zip(byreactants_group, byproducts_group):

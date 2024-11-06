@@ -70,6 +70,53 @@ molecules_parts_to_separate = {
     ]
 }
 
+key_maps = {
+    'fructose-1,6-bisphosphate': {
+        'glyceraldehyde-3-phosphate': {
+            3: 10,
+            8: 13,
+            9: 14,
+            7: 12,
+            11: 18,
+            10: 17,
+            6: 16,
+            5: 15,
+            4: 11,
+            1: 8,
+            2: 9,
+            0: 7,
+            18: 6,
+            12: 4,
+            19: 5,
+            20: 3,
+            23: 2,
+            23: 1,
+            21: 0,
+        },
+        'dihydroxyacetone phosphate': {
+            37: 10,
+            42: 13,
+            43: 14,
+            41: 12,
+            45: 18,
+            44: 17,
+            40: 16,
+            39: 15,
+            38: 11,
+            35: 8,
+            36: 9,
+            34: 7,
+            47: 5,
+            # 47: 6,
+            46: 4,
+            33: 3,
+            32: 1,
+            25: 0,
+            26: 2,
+        }
+    }
+}
+
 molecule_and_chemcodes = []
 for molecule, chemcode in zip(molecules, chemcodes):
     molecule_and_chemcodes.append(list(zip(molecule, chemcode)))
@@ -83,7 +130,7 @@ for i, chemcodes in enumerate(molecule_and_chemcodes):
     globals()[class_name].add_numbering = True
     globals()[class_name].animation = False
 
-def create_class(title, base_class, molecule_and_chemcodes, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate):
+def create_class(title, base_class, molecule_and_chemcodes, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate, key_maps):
 
     # Create the class dynamically
     return type(title, (base_class,), {
@@ -93,8 +140,9 @@ def create_class(title, base_class, molecule_and_chemcodes, enzymes, by_reactant
         'by_reactants_products': by_reactants_products, 
         'molecules_parts_to_separate': molecules_parts_to_separate, 
         'substrings_to_isolate': substrings_to_isolate,
+        'key_maps': key_maps
     })
 
 
 # Create and assign the class to globals
-globals()[title] = create_class(title, SceneCairo, molecule_and_chemcodes, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate)
+globals()[title] = create_class(title, SceneCairo, molecule_and_chemcodes, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate, key_maps)
