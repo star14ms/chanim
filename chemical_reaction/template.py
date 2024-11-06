@@ -1,4 +1,3 @@
-# Main Command: manim chemical_reaction/glycolysis.py Glycolysis
 from manim import Scene, config
 from manim import *
 from manim.mobject.geometry.line import Line
@@ -756,10 +755,13 @@ class SceneCairo(Scene):
 
 
 def construct_chemobject(self):
+    name, chemcode = self.chemcodes[-1]
+    chem_object = ChemWithName(chemcode, name) 
+
     numbering = VGroup()
 
     id_shape_map = 0
-    for mobject in TransformMatchingShapes.get_mobject_parts(self.chem_object.chem):
+    for mobject in TransformMatchingShapes.get_mobject_parts(chem_object.chem):
         if self.add_numbering:
             numbering.add(
                 MarkupText(str(id_shape_map))
@@ -774,12 +776,12 @@ def construct_chemobject(self):
         self.play(self.chem_object.creation_anim())
         self.wait()
     else:
-        self.add(self.chem_object)
+        self.add(chem_object)
         self.add(numbering)
 
 
 def construct_chemobject_animation(self, verbose=False):
-    if not isinstance(self.molecules[0], list):
+    if len(self.molecules[0]) == 1:
         position_title = [UP]
         position_molecule = [ORIGIN]
         font_size = 64
@@ -792,13 +794,13 @@ def construct_chemobject_animation(self, verbose=False):
     animations = []
     next_titles = []
     next_molecules = []
-    for i, molecule in enumerate([self.molecules[0]]):
+    for i, molecule in enumerate(self.molecules[0]):
         title = VMobject()
-        for title_line in molecule.name.tex_string.split(','):
+        for title_line in molecule[0].split('\n'):
             title.add(Tex(title_line, font_size=font_size, substrings_to_isolate=self.substrings_to_isolate))
         title.arrange(DOWN).to_edge(position_title[i])
         next_purural_sign = Tex('x{}'.format(n_molecules) if n_molecules > 1 else '', font_size=48).next_to(title, RIGHT)
-        molecule = ChemObject(molecule.chem.tex_string).scale(0.8).to_edge(position_molecule[i])
+        molecule = ChemObject(molecule[1]).scale(0.8).to_edge(position_molecule[i])
         next_titles.append(title)
         next_molecules.append(molecule)
         animations.extend([Write(title), Write(next_purural_sign), Create(molecule)])
@@ -832,14 +834,14 @@ def construct_chemobject_animation(self, verbose=False):
         prev_purural_sign = next_purural_sign
         prev_molecules = next_molecules
 
-        if not isinstance(molecule, list):
+        if len(molecule) == 1:
             title = VMobject()
-            for title_line in molecule.name.tex_string.split(','):
+            for title_line in molecule[0][0].split('\n'):
                 title.add(Tex(title_line, font_size=64, substrings_to_isolate=self.substrings_to_isolate))
             title.arrange(DOWN).to_edge(UP)
             next_titles = [title]
             next_purural_sign = Tex('x{}'.format(n_molecules) if n_molecules > 1 else '', font_size=48).next_to(next_titles[0], RIGHT)
-            next_molecules = [ChemObject(molecule.chem.tex_string).scale(0.8)] # .scale(0.8 if title != 'succinyl-CoA' else 0.3)
+            next_molecules = [ChemObject(molecule[0][1]).scale(0.8)] # .scale(0.8 if title != 'succinyl-CoA' else 0.3)
 
             animations1 = []
             is_prev_enzyme_used = False
@@ -855,14 +857,10 @@ def construct_chemobject_animation(self, verbose=False):
 
             if n_molecules > 1:
                 animations2.append(TransformMatchingTexColorHighlight(prev_purural_sign, next_purural_sign))
-
-            # for prev_title, next_title in zip(prev_titles[0], next_titles[0]):
-            #     print(prev_title, next_title)
-            #     animations2.append(TransformMatchingTexColorHighlight(prev_title, next_title, fade_transform_mismatches=True))
                 
-            for i in range(max(len(prev_titles[0]), len(next_titles[0]))):
-                prev_title = prev_titles[0][i] if len(prev_titles[0]) > i else Tex(prev_titles[0][i-1].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
-                next_title = next_titles[0][i] if len(next_titles[0]) > i else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
+            for k in range(max(len(prev_titles[0]), len(next_titles[0]))):
+                prev_title = prev_titles[0][k] if len(prev_titles[0]) > k else Tex(prev_titles[0][k-1].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
+                next_title = next_titles[0][k] if len(next_titles[0]) > k else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
                 animations2.append(TransformMatchingTexColorHighlight(prev_title, next_title, fade_transform_mismatches=True))
 
             animations2.extend([
@@ -871,54 +869,65 @@ def construct_chemobject_animation(self, verbose=False):
 
         elif len(molecule) == 2:
             title1 = VMobject()
-            for title_line in molecule[0].name.tex_string.split(','):
-                title1.add(Tex(title_line, font_size=64, substrings_to_isolate=self.substrings_to_isolate))
-            title1.arrange(DOWN).to_edge(UP)
+            for title_line in molecule[0][0].split('\n'):
+                title1.add(Tex(title_line, font_size=48, substrings_to_isolate=self.substrings_to_isolate))
+            title1.arrange(DOWN).to_edge(UL)
             title2 = VMobject()
-            for title_line in molecule[1].name.tex_string.split(','):
-                title2.add(Tex(title_line, font_size=64, substrings_to_isolate=self.substrings_to_isolate))
-            title2.arrange(DOWN).to_edge(UP)
+            for title_line in molecule[1][0].split('\n'):
+                title2.add(Tex(title_line, font_size=48, substrings_to_isolate=self.substrings_to_isolate))
+            title2.arrange(DOWN).to_edge(UR)
             next_titles = [
-                Tex(title1),
-                Tex(title2),
+                title1,
+                title2,
             ]
             next_molecules = [
-                ChemObject(molecule[0].chem.tex_string),
-                ChemObject(molecule[1].chem.tex_string),
+                ChemObject(molecule[0][1]).to_edge(LEFT),
+                ChemObject(molecule[1][1]).to_edge(RIGHT),
             ]
 
             animations1 = []
             is_prev_enzyme_used = False
             for j, (prev_title, next_title, prev_molecule) in enumerate(zip(prev_titles, next_titles, prev_molecules)):
-                if prev_title.tex_string == next_title.tex_string:
+                if prev_title.submobjects[0].tex_string == next_title.submobjects[0].tex_string:
                     continue
                 if len(prev_enzyme) == 1 and j != 0 and is_prev_enzyme_used:
                     prev_enzyme = Tex(prev_enzyme, font_size=48).to_edge(DOWN)
                 animations1.append(FadeOut(prev_enzyme, target_position=prev_molecules[0] if len(prev_titles) == 1 else prev_molecule, scale=0.5))
                 is_prev_enzyme_used = True
 
-            if len(prev_molecules) == 1 and (prev_molecule_parts_to_separate := self.molecules_parts_to_separate.get(prev_title.tex_string)):
+            if len(prev_molecules) == 1 and (prev_molecule_parts_to_separate := self.molecules_parts_to_separate.get(prev_title[0].tex_string)):
                 animations1.append(FadeOut(prev_molecule))
 
                 prev_molecules_partial = []
-                for _ in prev_molecule_parts_to_separate:
-                    prev_molecule_partial = ChemObject(self.molecules[1:][i-1].chem.tex_string).scale(0.8).next_to(prev_molecule, ORIGIN)
+                for prev_molecule_part in prev_molecule_parts_to_separate:
+                    prev_molecule_partial = ChemObject(self.molecules[i][0][1]).scale(0.8).next_to(prev_molecule, ORIGIN)
+                    
+                    ids_to_remove = sorted([*prev_molecule_part['atoms'], *prev_molecule_part['bonds']], reverse=True)
+
+                    for id_to_remove in ids_to_remove:
+                        prev_molecule_partial.submobjects[0].submobjects.pop(id_to_remove)
+                        
+                    prev_molecule_partial.submobjects
                     prev_molecules_partial.append(prev_molecule_partial)
                     animations1.append(FadeIn(prev_molecule_partial))
 
             animations2 = []
             for j, (next_title, next_molecule) in enumerate(zip(next_titles, next_molecules)):
                 if len(prev_titles) == 1 and j != 0:
-                    prev_title = Tex(prev_titles[0].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).next_to(prev_titles[0], ORIGIN)
-                    prev_molecule = ChemObject(self.molecules[1:][i-1].chem.tex_string).scale(0.8).next_to(prev_molecule, ORIGIN)
+                    prev_title = VMobject()
+                    prev_title.add(Tex(prev_titles[0].submobjects[0].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).next_to(prev_titles[0], ORIGIN))
+                    prev_molecule = ChemObject(self.molecules[i][0][1]).scale(0.8).next_to(prev_molecule, ORIGIN)
                 else:
                     prev_title = prev_titles[0] if len(prev_titles) == 1 else prev_titles[j]
                     prev_molecule = prev_molecules[0] if len(prev_titles) == 1 else prev_molecules[j]
 
-                animations2.append(TransformMatchingTexColorHighlight(prev_title, next_title))
+                for k in range(max(len(prev_title), len(next_title))):
+                    prev_title = prev_title[k] if len(prev_title) > k else Tex(prev_title[k-1].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
+                    next_title = next_title[k] if len(next_title) > k else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
+                    animations2.append(TransformMatchingTexColorHighlight(prev_title, next_title))
 
                 print('Matching molecules | Reactant: [yellow]{}[/yellow], Product: [yellow]{}[/yellow]'.format(prev_title.tex_string, next_title.tex_string))
-                if len(prev_molecules) == 1:
+                if len(prev_molecules) == 1 and prev_molecule_parts_to_separate:
                     # key_map = match_molecules(prev_molecules_partial[j], next_molecule, limited_part=prev_molecule_parts_to_separate[j], verbose=verbose)
                     animations2.append(TransformMatchingShapesSameLocation(prev_molecules_partial[j], next_molecule)) # , key_map=key_map
                 else:
@@ -931,7 +940,33 @@ def construct_chemobject_animation(self, verbose=False):
 
         self.play(*animations1, run_time=1)
         self.play(*animations2, run_time=1.5)
-        
+
+        if len(molecule) > 1 and molecule[0][0] == molecule[1][0]:
+            title = molecule[0][0]
+            prev_titles = next_titles
+            prev_molecules = next_molecules
+            titles = VMobject()
+            titles.add(Tex(molecule[0][0], font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP))
+            next_titles = [titles]
+            next_molecules = [ChemObject(molecule[0][1])]
+
+            animations = []
+            for k in range(max(len(prev_titles[0]), len(next_titles[0]))):
+                prev_title = prev_titles[0][k] if len(prev_titles[0]) > k else Tex(prev_titles[0][k-1].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
+                next_title = next_titles[0][k] if len(next_titles[0]) > k else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
+                animations.append(TransformMatchingTexColorHighlight(prev_title, next_title, fade_transform_mismatches=True))
+            animations.append(TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0])) # , key_map=key_map
+
+            n_molecules *= len(molecule)
+            next_purural_sign = Tex('x{}'.format(n_molecules), font_size=48).next_to(next_titles[0], RIGHT)
+            for prev_title, prev_molecule in zip(prev_titles[1:], prev_molecules[1:]):
+                animations.append(FadeIn(next_purural_sign))
+                animations.append(FadeOut(prev_title, target_position=next_purural_sign, scale=0.3))
+                animations.append(FadeOut(prev_molecule, target_position=next_purural_sign, scale=0.3))
+
+            self.wait(duration=0.5)
+            self.play(*animations, run_time=1)
+
         animations3 = []
         for j, (next_title, next_molecule) in enumerate(zip(next_titles, next_molecules)):
             animations3.extend([
@@ -946,23 +981,3 @@ def construct_chemobject_animation(self, verbose=False):
             ], run_time=1)
         else:
             self.play(animations3, run_time=1)
-
-        if isinstance(molecule, list) and len(molecule) > 1 and molecule[0].name.tex_string == molecule[1].name.tex_string:
-            title = molecule[0].name.tex_string
-            prev_titles = next_titles
-            prev_molecules = next_molecules
-            next_titles = [Tex(title, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)]
-            next_molecules = [ChemObject(molecule[0].chem.tex_string).scale(0.8)]
-
-            animations = []
-            animations.append(TransformMatchingTexColorHighlight(prev_titles[0], next_titles[0]))
-            animations.append(TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0])) # , key_map=key_map
-
-            n_molecules *= len(title)
-            next_purural_sign = Tex('x{}'.format(n_molecules), font_size=48).next_to(next_titles[0], RIGHT)
-            for prev_title, prev_molecule in zip(prev_titles[1:], prev_molecules[1:]):
-                animations.append(FadeIn(next_purural_sign))
-                animations.append(FadeOut(prev_title, target_position=next_purural_sign, scale=0.3))
-                animations.append(FadeOut(prev_molecule, target_position=next_purural_sign, scale=0.3))
-
-            self.play(*animations, run_time=1)
