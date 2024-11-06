@@ -420,6 +420,11 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
 
         if key_map is None:
             key_map = self.get_key_map(source_map, target_map) or {}
+            all_keys_source = []
+            source_map_values = []
+        else:
+            all_keys_source = [str(submob.key) for submob in mobject[0]]
+            source_map_values = list(source_map.values())
 
         # Create two mobjects whose submobjects all match each other
         # according to whatever keys are used for source_map and
@@ -435,29 +440,44 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         # into another despite not matching by using key_map
         key_mapped_source = group_type()
         key_mapped_target = group_type()
-        
-        all_keys_source = [str(submob.key) for submob in mobject[0]]
-        source_map_values = list(source_map.values())
         # print(source_map)
         # print(target_map)
         # print(key_map)
         for key1, key2 in key_map.items():
             key1, key2 = str(key1), str(key2)
             # print(key1, key1 in source_map, key2, key2 in target_map)
-            if (key1 in all_keys_source) and (key2 in target_map or 'atom_' + key2 in target_map):
+            if (key1 in source_map or 'atom_' + key1 in source_map or key1 in all_keys_source) and (key2 in target_map or 'atom_' + key2 in target_map):
                 key2 = key2 if key2 in target_map else 'atom_' + key2
-                source_mob = filter(lambda x: str(x.key) == key1, source_map_values).__next__()
                 target_mob = target_map[key2]
-
-                # key_mapped_source.add(source_map[key1])
-                key_mapped_source.add(source_mob)
                 key_mapped_target.add(target_mob)
-                
-                index = str(list(source_map_values).index(source_mob))
-                key1_ = index if 'atom' not in key2 else 'atom_' + index
-                source_map.pop(key1_, None)
                 target_map.pop(key2, None)
-                
+
+                if all_keys_source == []:
+                    key1 = key1 if key1 in source_map else 'atom_' + key1
+                    source_mob = source_map[key1]
+                else:
+                    source_mob = filter(lambda x: str(x.key) == key1, source_map_values).__next__()
+                    index = str(list(source_map_values).index(source_mob))
+                    key1 = index if 'atom' not in key2 else 'atom_' + index
+
+                key_mapped_source.add(source_mob)
+                source_map.pop(key1, None)
+
+                if all_keys_source != []:
+                    if (id_dashed_cram := source_mob.__dict__.get('id_dashed_cram', None)) is not None:
+                        key1_list_to_pop = []
+
+                        for key in source_map:
+                            if source_map[key].__dict__.get('id_dashed_cram', None) == id_dashed_cram:
+                                anims.append(FadeOut(source_map[key], target_position=target_mob))
+
+                                index = str(list(source_map_values).index(source_map[key]))
+                                key1_ = index if 'atom' not in key2 else 'atom_' + index
+                                key1_list_to_pop.append(key1_)
+                        
+                        for key in key1_list_to_pop:  
+                            source_map.pop(key, None)
+
                 # sub_idx = 1
                 # while key1 + '-' + str(sub_idx) in source_map and key2 + '-' + str(sub_idx) in target_map:
                 #     key_mapped_source.add(source_map[key1 + '-' + str(sub_idx)])
