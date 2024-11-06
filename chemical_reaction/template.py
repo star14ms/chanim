@@ -894,8 +894,14 @@ def construct_chemobject_animation(self, verbose=False):
                 next_title = next_titles[0][k] if len(next_titles[0]) > k else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
                 animations2.append(TransformMatchingTexColorHighlight(prev_title, next_title, fade_transform_mismatches=True))
 
+            if key_map := self.key_maps.get(prev_title.tex_string, None):
+                key_map = key_map.get(next_title.tex_string, None)
+
+                for n in range(len(prev_molecules[0].submobjects[0].submobjects)):
+                    prev_molecules[0].submobjects[0].submobjects[n].key = n
+
             animations2.extend([
-                TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0]) # , key_map=key_map
+                TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0], key_map=key_map) 
             ])
 
         elif len(molecule) == 2:
@@ -960,13 +966,13 @@ def construct_chemobject_animation(self, verbose=False):
                     animations2.append(TransformMatchingTexColorHighlight(prev_title, next_title))
 
                 print('Matching molecules | Reactant: [yellow]{}[/yellow], Product: [yellow]{}[/yellow]'.format(prev_title.tex_string, next_title.tex_string))
+
+                if key_map := self.key_maps.get(prev_title.tex_string, None):
+                    key_map = key_map.get(next_title.tex_string, None)
+
                 if len(prev_molecules) == 1 and prev_molecule_parts_to_separate:
-                    if key_map := self.key_maps.get(prev_title.tex_string, None):
-                        key_map = key_map.get(next_title.tex_string, None)
                     animations2.append(TransformMatchingShapesSameLocation(prev_molecules_partial[j], next_molecule, key_map=key_map))
                 else:
-                    if key_map := self.key_maps.get(prev_title.tex_string, None):
-                        key_map = key_map.get(next_title.tex_string, None)
                     animations2.append(TransformMatchingShapesSameLocation(prev_molecule, next_molecule, key_map=key_map))
 
         if len(byreaction) > 0 and len(byreaction[0]) != 0:
