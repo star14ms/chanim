@@ -559,11 +559,11 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
             target_dashed_cram = defaultdict(list)
 
             for key_source in source_map:
-                if id_dashed_cram := source_map[key_source].__dict__.get('id_dashed_cram', None):
+                if id_dashed_cram := source_map[key_source].__dict__.get('id_dashed_cram', None) is not None:
                     source_dashed_cram[id_dashed_cram].append(key_source)
                 
             for key_target in target_map:
-                if id_dashed_cram := target_map[key_target].__dict__.get('id_dashed_cram', None):
+                if id_dashed_cram := target_map[key_target].__dict__.get('id_dashed_cram', None) is not None:
                     target_dashed_cram[id_dashed_cram].append(key_target)
             
             for source_id_dashe_cram, key_sources in source_dashed_cram.items():
