@@ -835,10 +835,35 @@ def construct_chemobject_animation(self, verbose=False):
         next_titles.append(title)
         next_molecules.append(molecule)
         animations.extend([Write(title), Write(next_purural_sign), Create(molecule)])
-        break
 
     self.play(*animations, run_time=1.5)
     self.wait(duration=0.5)
+    
+    if len(self.molecules[0]) > 1 and self.molecules[0][0][0] == self.molecules[0][1][0]:
+        title = self.molecules[0][0][0]
+        prev_titles = next_titles
+        prev_molecules = next_molecules
+        titles = VMobject()
+        titles.add(Tex(self.molecules[0][0][0], font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP))
+        next_titles = [titles]
+        next_molecules = [ChemObject(self.molecules[0][0][1])]
+
+        animations = []
+        for k in range(max(len(prev_titles[0]), len(next_titles[0]))):
+            prev_title = prev_titles[0][k] if len(prev_titles[0]) > k else Tex(prev_titles[0][k-1].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
+            next_title = next_titles[0][k] if len(next_titles[0]) > k else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
+            animations.append(TransformMatchingTexColorHighlight(prev_title, next_title, fade_transform_mismatches=True))
+        animations.append(TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0])) # , key_map=key_map
+
+        n_molecules *= len(self.molecules[0])
+        next_purural_sign = Tex('x{}'.format(n_molecules), font_size=48).next_to(next_titles[0], RIGHT)
+        for prev_title, prev_molecule in zip(prev_titles[1:], prev_molecules[1:]):
+            animations.append(FadeIn(next_purural_sign))
+            animations.append(FadeOut(prev_title, target_position=next_purural_sign, scale=0.3))
+            animations.append(FadeOut(prev_molecule, target_position=next_purural_sign, scale=0.3))
+
+        self.wait(duration=0.5)
+        self.play(*animations, run_time=1)
 
     for i, (molecule, enzyme, byreaction) in enumerate(zip(self.molecules[1:], self.enzymes, self.by_reactants_products)):
         next_enzyme = Tex(enzyme, font_size=48).to_edge(DOWN)

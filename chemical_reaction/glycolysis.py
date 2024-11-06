@@ -35,7 +35,7 @@ chemcodes = [
     ['[:-30]*6(HO-(=O)-(-O)=)'],
 ]
 
-substrings_to_isolate = ['glucose', 'fructose', 'phosphate', 'phospho', 'glycer', 'pyruvate', 'A', 'T', 'P', 'D']
+substrings_to_isolate = ['glucose', 'fructose', 'phosph', 'glycer', 'pyruvate', 'A', 'T', 'P', 'D', '3-']
 
 enzymes = [
     'hexokinase',
