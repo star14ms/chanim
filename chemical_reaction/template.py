@@ -533,7 +533,27 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         return shape_map
 
     def get_key_map(self, source_map: Mobject, target_map: Mobject, only_using_identical_distances=True) -> dict:
-        
+        distances_between_identical_mobjects, identical_n_points = self.get_possible_distances(source_map, target_map, only_using_identical_distances)
+
+        key_maps = []
+        for distance_identical in distances_between_identical_mobjects:
+            key_map = self.match_translated_points(distance_identical, identical_n_points, source_map, target_map)
+            matching_ratio = len(key_map) / len(source_map)
+
+            if matching_ratio >= self.min_ratio_to_accept_match or not only_using_identical_distances:
+                key_map = self.match_dashed_crams(source_map, target_map, key_map)
+                key_map = self.match_closest_mobjects(source_map, target_map, key_map)
+                key_maps.append(key_map)
+
+        key_map = max(key_maps, key=len) if len(key_maps) != 0 else {}
+        # print(len(key_map), len(source_map), len(target_map))
+
+        if len(key_map) >= self.min_ratio_to_accept_match * len(source_map) or not only_using_identical_distances:
+            return key_map if len(key_map) != 0 else None
+        else:
+            return self.get_key_map(source_map, target_map, only_using_identical_distances=False)
+
+    def get_possible_distances(self, source_map, target_map, only_using_identical_distances):
         # Get possible distances between two molecules
         mobject_counter = Counter([len(sm.points) for sm in source_map.values()])
         target_mobject_counter = Counter([len(sm.points) for sm in target_map.values()])
@@ -555,114 +575,108 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
                     # print(' '.join(map(lambda x: '%.6f' % x, mobject_target.get_center() - mobject_source.get_center())))
                     distances_between_identical_mobjects.append(mobject_target.get_center() - mobject_source.get_center())
 
-        # match mobjects based on possible distances
-        key_maps = []
-        key_map_max_matching = {}
-
         print('n_possible_distances', len(distances_between_identical_mobjects))
-        for distance_xyz_identical in distances_between_identical_mobjects:
-            key_map = {}
         
-            for key_source, mobject_source in source_map.items():
-                n_points = len(mobject_source.points)
-                # print(key_source, n_points)
+        return distances_between_identical_mobjects, identical_n_points
 
-                if key_source in key_map:
+    def match_translated_points(self, distance_identical, identical_n_points, source_map, target_map):
+        key_map = {}
+
+        for key_source, mobject_source in source_map.items():
+            n_points = len(mobject_source.points)
+            # print(key_source, n_points)
+
+            if key_source in key_map:
+                continue
+
+            for key_target, mobject_target in target_map.items():
+                if key_target in key_map.values() or type(mobject_target) != type(mobject_source):
                     continue
 
-                for key_target, mobject_target in target_map.items():
-                    if key_target in key_map.values() or type(mobject_target) != type(mobject_source):
-                        continue
+                distance_xyz = mobject_target.get_center() - mobject_source.get_center()
 
-                    distance_xyz = mobject_target.get_center() - mobject_source.get_center()
+                # if key_source == '26' and key_target == '27':
+                #     print(' '.join(map(lambda x: '%.6f' % x, mobject_target.get_center() - mobject_source.get_center())))
 
-                    # if key_source == '26' and key_target == '27':
-                    #     print(' '.join(map(lambda x: '%.6f' % x, mobject_target.get_center() - mobject_source.get_center())))
-
-                    if len(mobject_target.points) == n_points and (isinstance(mobject_target, Line) or (len(mobject_target.path_obj) == len(mobject_source.path_obj))) and \
-                        ((n_points in identical_n_points) or (abs(distance_xyz[0] - distance_xyz_identical[0]) <= self.error_tolerance and abs(distance_xyz[1] - distance_xyz_identical[1]) <= self.error_tolerance and abs(distance_xyz[2] - distance_xyz_identical[2]) <= self.error_tolerance)): 
-                        # print(len(mobject_target.points), not isinstance(mobject_source.path_obj[1], Line))
-                        key_map[key_source] = key_target
-                        break
-            
-            key_map_dashed_cram = defaultdict(dict)
-            source_dashed_cram = defaultdict(list)
-            target_dashed_cram = defaultdict(list)
-
-            for key_source in source_map:
-                if id_dashed_cram := source_map[key_source].__dict__.get('id_dashed_cram', None) is not None:
-                    source_dashed_cram[id_dashed_cram].append(key_source)
-                
-            for key_target in target_map:
-                if id_dashed_cram := target_map[key_target].__dict__.get('id_dashed_cram', None) is not None:
-                    target_dashed_cram[id_dashed_cram].append(key_target)
-            
-            for source_id_dashe_cram, key_sources in source_dashed_cram.items():
-                for target_id_dashe_cram, key_targets in target_dashed_cram.items():
-                        distances = []
-                        for points_source, points_target in zip(source_map[key_sources[0]].points, target_map[key_targets[0]].points):
-                            distances.append(np.sqrt(sum((x ** 2 for x in points_source - points_target))))
-                        distance_mean = np.mean(distances)
-                        key_map_dashed_cram[source_id_dashe_cram][target_id_dashe_cram] = distance_mean
-            
-            while len(key_map_dashed_cram) != 0:
-                source_key_min_distance = min(key_map_dashed_cram, key=lambda x: min(key_map_dashed_cram[x].values()))
-                target_key_min_distance = min(key_map_dashed_cram[source_key_min_distance], key=key_map_dashed_cram[source_key_min_distance].get)
-                
-                for key_source, key_target in zip(source_dashed_cram[source_key_min_distance], target_dashed_cram[target_key_min_distance]):
+                if len(mobject_target.points) == n_points and (isinstance(mobject_target, Line) or (len(mobject_target.path_obj) == len(mobject_source.path_obj))) and \
+                    ((n_points in identical_n_points) or (abs(distance_xyz[0] - distance_identical[0]) <= self.error_tolerance and abs(distance_xyz[1] - distance_identical[1]) <= self.error_tolerance and abs(distance_xyz[2] - distance_identical[2]) <= self.error_tolerance)): 
+                    # print(len(mobject_target.points), not isinstance(mobject_source.path_obj[1], Line))
                     key_map[key_source] = key_target
-
-                key_map_dashed_cram.pop(source_key_min_distance)
-                for key in key_map_dashed_cram:
-                    key_map_dashed_cram[key].pop(target_key_min_distance, None)
-
-            matching_ratio = len(key_map) / len(source_map)
-
-            if matching_ratio >= self.min_ratio_to_accept_match or not only_using_identical_distances:
-                key_map_extended = defaultdict(dict)
-
-                for key_source, mobject_source in source_map.items():
-                    n_points = len(mobject_source.points)
-
-                    if key_source in key_map:
-                        continue
-
-                    for key_target, mobject_target in target_map.items():
-                        if key_target in key_map.values() or type(mobject_target) != type(mobject_source):
-                            continue
-
-                        if len(mobject_target.points) == n_points and (
-                            (isinstance(mobject_target, Line)) or len(mobject_target.path_obj) == len(mobject_source.path_obj)
-                        ):
-                            distance_xyz = mobject_target.get_center() - mobject_source.get_center()
-                            distance_xyz = np.sqrt(sum((x ** 2 for x in distance_xyz)))
-                            key_map_extended[key_source][key_target] = distance_xyz
-                            # if key_source == '19' and key_target == '20':
-                            #     breakpoint()
-                            
-                # print(key_map_extended)
+                    break
                 
-                while len(key_map_extended) != 0:
-                    source_key_min_distance = min(key_map_extended, key=lambda x: min(key_map_extended[x].values()))
-                    target_key_min_distance = min(key_map_extended[source_key_min_distance], key=key_map_extended[source_key_min_distance].get)
-                    key_map[source_key_min_distance] = target_key_min_distance
-                    key_map_extended.pop(source_key_min_distance)
+        return key_map
+        
+    def match_dashed_crams(self, source_map, target_map, key_map):
+        key_map_dashed_cram = defaultdict(dict)
+        source_dashed_cram = defaultdict(list)
+        target_dashed_cram = defaultdict(list)
+
+        for key_source in source_map:
+            if id_dashed_cram := source_map[key_source].__dict__.get('id_dashed_cram', None) is not None:
+                source_dashed_cram[id_dashed_cram].append(key_source)
+            
+        for key_target in target_map:
+            if id_dashed_cram := target_map[key_target].__dict__.get('id_dashed_cram', None) is not None:
+                target_dashed_cram[id_dashed_cram].append(key_target)
+        
+        for source_id_dashe_cram, key_sources in source_dashed_cram.items():
+            for target_id_dashe_cram, key_targets in target_dashed_cram.items():
+                    distances = []
+                    for points_source, points_target in zip(source_map[key_sources[0]].points, target_map[key_targets[0]].points):
+                        distances.append(np.sqrt(sum((x ** 2 for x in points_source - points_target))))
+                    distance_mean = np.mean(distances)
+                    key_map_dashed_cram[source_id_dashe_cram][target_id_dashe_cram] = distance_mean
+        
+        while len(key_map_dashed_cram) != 0:
+            source_key_min_distance = min(key_map_dashed_cram, key=lambda x: min(key_map_dashed_cram[x].values()))
+            target_key_min_distance = min(key_map_dashed_cram[source_key_min_distance], key=key_map_dashed_cram[source_key_min_distance].get)
+            
+            for key_source, key_target in zip(source_dashed_cram[source_key_min_distance], target_dashed_cram[target_key_min_distance]):
+                key_map[key_source] = key_target
+
+            key_map_dashed_cram.pop(source_key_min_distance)
+            for key in key_map_dashed_cram:
+                key_map_dashed_cram[key].pop(target_key_min_distance, None)
+
+        return key_map
+
+    def match_closest_mobjects(self, source_map, target_map, key_map):
+        key_map_extended = defaultdict(dict)
+
+        for key_source, mobject_source in source_map.items():
+            n_points = len(mobject_source.points)
+
+            if key_source in key_map:
+                continue
+
+            for key_target, mobject_target in target_map.items():
+                if key_target in key_map.values() or type(mobject_target) != type(mobject_source):
+                    continue
+
+                if len(mobject_target.points) == n_points and (
+                    (isinstance(mobject_target, Line)) or len(mobject_target.path_obj) == len(mobject_source.path_obj)
+                ):
+                    distance_xyz = mobject_target.get_center() - mobject_source.get_center()
+                    distance_xyz = np.sqrt(sum((x ** 2 for x in distance_xyz)))
+                    key_map_extended[key_source][key_target] = distance_xyz
+                    # if key_source == '19' and key_target == '20':
+                    #     breakpoint()
                     
-                    for key in key_map_extended.copy():
-                        key_map_extended[key].pop(target_key_min_distance, None)
-                        
-                        if len(key_map_extended[key]) == 0:
-                            key_map_extended.pop(key)
-
-            key_maps.append(key_map)
-
-        key_map_max_matching = max(key_maps, key=len) if len(key_maps) != 0 else {}
-        # print(len(key_map_max_matching), len(source_map), len(target_map))
-
-        if len(key_map_max_matching) >= self.min_ratio_to_accept_match * len(source_map) or not only_using_identical_distances:
-            return key_map_max_matching if len(key_map_max_matching) != 0 else None
-        else:
-            return self.get_key_map(source_map, target_map, only_using_identical_distances=False)
+        # print(key_map_extended)
+        
+        while len(key_map_extended) != 0:
+            source_key_min_distance = min(key_map_extended, key=lambda x: min(key_map_extended[x].values()))
+            target_key_min_distance = min(key_map_extended[source_key_min_distance], key=key_map_extended[source_key_min_distance].get)
+            key_map[source_key_min_distance] = target_key_min_distance
+            key_map_extended.pop(source_key_min_distance)
+            
+            for key in key_map_extended.copy():
+                key_map_extended[key].pop(target_key_min_distance, None)
+                
+                if len(key_map_extended[key]) == 0:
+                    key_map_extended.pop(key)
+                    
+        return key_map
 
 
 class TransformMatchingTexColorHighlight(TransformMatchingTex):
