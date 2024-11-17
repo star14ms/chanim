@@ -137,6 +137,7 @@ class ChemObject(MathTexPdf2Svg):
         bond_style: str = "",
         stroke_width: str = 2,
         tex_template=ChemTemplate,
+        max_initial_height=110,
         **kwargs,
     ):
         # digest_config(self, kwargs)
@@ -159,6 +160,12 @@ class ChemObject(MathTexPdf2Svg):
             tex_environment=None,
             **kwargs,
         )
+
+        if self.initial_height > max_initial_height:
+            self.initial_scale_factor = max_initial_height / self.initial_height
+            self.scale(self.initial_scale_factor)
+        else:
+            self.initial_scale_factor = 1
 
     def set_ion_position(
         self, string_number=0, e_index=0, final_atom_index=1, direction=LEFT

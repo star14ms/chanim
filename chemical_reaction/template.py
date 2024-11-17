@@ -414,17 +414,8 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
             group_type = VGroup
         else:
             group_type = Group
-
-        source_map = self.get_shape_map(mobject)
-        target_map = self.get_shape_map(target_mobject)
-
-        if key_map is None:
-            key_map = self.get_key_map(source_map, target_map) or {}
-            all_keys_source = []
-            source_map_values = []
-        else:
-            all_keys_source = [str(submob.key) for submob in mobject[0]]
-            source_map_values = list(source_map.values())
+            
+        source_map, target_map, key_map, all_keys_source, source_map_values = self.get_key_maps(key_map, mobject, target_mobject)
 
         # Create two mobjects whose submobjects all match each other
         # according to whatever keys are used for source_map and
@@ -532,6 +523,32 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
 
         return shape_map
 
+    def original_scale(func):
+        def wrapper(*args, **kwargs):
+            for arg in args[2:]: # Skip self
+                arg.scale(1 / arg.initial_scale_factor)
+            result = func(*args, **kwargs)
+            for arg in args[2:]:
+                arg.scale(arg.initial_scale_factor)
+            return result
+        return wrapper
+    
+    @original_scale
+    def get_key_maps(self, key_map, mobject, target_mobject):
+        source_map = self.get_shape_map(mobject)
+        target_map = self.get_shape_map(target_mobject)
+
+        if key_map is None:
+            key_map = self.get_key_map(source_map, target_map) or {}
+            all_keys_source = []
+            source_map_values = []
+        else:
+            key_map = key_map
+            all_keys_source = [str(submob.key) for submob in mobject[0]]
+            source_map_values = list(source_map.values())
+            
+        return source_map, target_map, key_map, all_keys_source, source_map_values
+
     def get_key_map(self, source_map: Mobject, target_map: Mobject, only_using_identical_distances=True) -> dict:
         distances_between_identical_mobjects, identical_n_points = self.get_possible_distances(source_map, target_map, only_using_identical_distances)
 
@@ -571,7 +588,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
                 continue
 
             for mobject_target in target_map.values():
-                if len(mobject_target.points) == n_points:
+                if len(mobject_target.points) == n_points and n_points > n_points_threshold_as_bond:
                     # print(' '.join(map(lambda x: '%.6f' % x, mobject_target.get_center() - mobject_source.get_center())))
                     distances_between_identical_mobjects.append(mobject_target.get_center() - mobject_source.get_center())
 
@@ -845,7 +862,7 @@ def construct_chemobject_animation(self, verbose=False):
             title.add(Tex(title_line, font_size=font_size, substrings_to_isolate=self.substrings_to_isolate))
         title.arrange(DOWN).to_edge(position_title[i])
         next_purural_sign = Tex('x{}'.format(n_molecules) if n_molecules > 1 else '', font_size=48).next_to(title, RIGHT)
-        molecule = ChemObject(molecule[1]).scale(0.8).to_edge(position_molecule[i])
+        molecule = ChemObject(molecule[1]).to_edge(position_molecule[i], buff=0.5 if len(self.molecules[0]) == 1 else 0.75)
         next_titles.append(title)
         next_molecules.append(molecule)
         animations.extend([Write(title), Write(next_purural_sign), Create(molecule)])
@@ -911,7 +928,7 @@ def construct_chemobject_animation(self, verbose=False):
             title.arrange(DOWN).to_edge(UP)
             next_titles = [title]
             next_purural_sign = Tex('x{}'.format(n_molecules) if n_molecules > 1 else '', font_size=48).next_to(next_titles[0], RIGHT)
-            next_molecules = [ChemObject(molecule[0][1]).scale(0.8)] # .scale(0.8 if title != 'succinyl-CoA' else 0.3)
+            next_molecules = [ChemObject(molecule[0][1])]
 
             animations1 = []
             is_prev_enzyme_used = False
@@ -976,7 +993,7 @@ def construct_chemobject_animation(self, verbose=False):
 
                 prev_molecules_partial = []
                 for prev_molecule_part in prev_molecule_parts_to_separate:
-                    prev_molecule_partial = ChemObject(self.molecules[i][0][1]).scale(0.8).next_to(prev_molecule, ORIGIN)
+                    prev_molecule_partial = ChemObject(self.molecules[i][0][1]).next_to(prev_molecule, ORIGIN)
                     
                     ids_to_remove = sorted([*prev_molecule_part['atoms'], *prev_molecule_part['bonds']], reverse=True)
                     
@@ -994,7 +1011,7 @@ def construct_chemobject_animation(self, verbose=False):
                 if len(prev_titles) == 1 and j != 0:
                     prev_title = VMobject()
                     prev_title.add(Tex(prev_titles[0].submobjects[0].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).next_to(prev_titles[0], ORIGIN))
-                    prev_molecule = ChemObject(self.molecules[i][0][1]).scale(0.8).next_to(prev_molecule, ORIGIN)
+                    prev_molecule = ChemObject(self.molecules[i][0][1]).next_to(prev_molecule, ORIGIN)
                 else:
                     prev_title = prev_titles[0] if len(prev_titles) == 1 else prev_titles[j]
                     prev_molecule = prev_molecules[0] if len(prev_titles) == 1 else prev_molecules[j]
