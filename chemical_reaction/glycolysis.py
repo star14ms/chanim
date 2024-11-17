@@ -2,7 +2,7 @@
 import sys, os
 sys.path.append(os.path.abspath('.'))
 
-from template import SceneCairo, construct_chemobject, construct_chemobject_animation
+from base import create_Scenes
 
 
 title = 'Glycolysis'
@@ -26,7 +26,7 @@ chemcodes = [
     ['*6((<HO)-(<:OH)-(<OH)-(<:OH)-(<-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)'],
     ['[:18]*5((<-[:198,,,,line width=7pt]HO)(<:HO)-(<OH)-(<:OH)-(<-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)'],
     ['[:18]*5((<-[:198,,,,line width=7pt]O-[:180]P(-[:90]O)(=[:-90]O)-[:180]O)(<:HO)-(<OH)-(<:OH)-(<-[:150]O-P(-[:0]O)(=[:180]O)-O)-O-)'],
-    ['*6((=O)-(<OH)-(-O-[:30]P(=[:120]O)(-[:-60]O)-[:30]O))', '*6((-OH)-(=O)-(-O-[:30]P(=[:120]O)(-[:-60]O)-[:30]O))'],
+    ['*6((=O)-(<OH)-(-O-[:30]P(=[:120]O)(-[:-60]O)-[:30]O))', '*6((-HO)-(=O)-(-O-[:30]P(=[:120]O)(-[:-60]O)-[:30]O))'],
     ['*6((=O)-(<OH)-(-O-[:30]P(=[:120]O)(-[:-60]O)-[:30]O))', '*6((=O)-(<OH)-(-O-[:30]P(=[:120]O)(-[:-60]O)-[:30]O))'],
     ['[:-30]*6(O(-[:180]P(-[:90]O)(=[:-90]O)-[:180]O)-(=O)-(-OH)-(-O-[:60]P(=[:150]O)(-[:-30]O)-[:60]O))'],
     ['[:-30]*6(HO-(=O)-(-OH)-(-O-[:60]P(=[:150]O)(-[:-30]O)-[:60]O))'],
@@ -140,32 +140,5 @@ key_maps = {
     },
 }
 
-molecule_and_chemcodes = []
-for molecule, chemcode in zip(molecules, chemcodes):
-    molecule_and_chemcodes.append(list(zip(molecule, chemcode)))
-
-
-for i, chemcodes in enumerate(molecule_and_chemcodes):
-    class_name = str(i+1) + '_' + ''.join(map(lambda x: x.capitalize().replace(',', '').replace(' ', ''), chemcodes[-1][0].split('-')))
-
-    globals()[class_name] = type(class_name, (SceneCairo,), {'construct': construct_chemobject})
-    globals()[class_name].chemcodes = chemcodes
-    globals()[class_name].add_numbering = True
-    globals()[class_name].animation = False
-
-def create_class(title, base_class, molecule_and_chemcodes, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate, key_maps):
-
-    # Create the class dynamically
-    return type(title, (base_class,), {
-        'construct': construct_chemobject_animation, 
-        'molecules': molecule_and_chemcodes, 
-        'enzymes': enzymes, 
-        'by_reactants_products': by_reactants_products, 
-        'molecules_parts_to_separate': molecules_parts_to_separate, 
-        'substrings_to_isolate': substrings_to_isolate,
-        'key_maps': key_maps
-    })
-
-
-# Create and assign the class to globals
-globals()[title] = create_class(title, SceneCairo, molecule_and_chemcodes, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate, key_maps)
+molecule_classes, main_class = create_Scenes(title, molecules, chemcodes, enzymes, by_reactants_products, molecules_parts_to_separate, substrings_to_isolate, key_maps, __name__)
+globals().update(molecule_classes)
