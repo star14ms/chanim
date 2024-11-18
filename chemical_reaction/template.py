@@ -116,10 +116,17 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         elif fade_transform_mismatches:
             anims.append(FadeTransformPieces(fade_source, fade_target, **kwargs))
         else:
-            anims.append(FadeOut(fade_source, **kwargs))
-            anims.append(
-                FadeIn(fade_target_copy, **kwargs),
-            )
+            if 'target_position' in kwargs:
+                target_position = kwargs.pop('target_position')
+                fadeout_list = [FadeOut(fade_source_mob, target_position=target_position if len(fade_source_mob.points) > N_POINTS_THRESHOLD_AS_BOND else None, **kwargs) for fade_source_mob in fade_source]
+                anims.append(AnimationGroup(*fadeout_list))
+                fadein_list = [FadeIn(fade_target_mob, target_position=target_position if len(fade_target_mob.points) > N_POINTS_THRESHOLD_AS_BOND else None, **kwargs) for fade_target_mob in fade_target_copy]
+                anims.append(AnimationGroup(*fadein_list))
+            else:
+                anims.append(FadeOut(fade_source, **kwargs))
+                anims.append(
+                    FadeIn(fade_target_copy, **kwargs),
+                )
 
         super(TransformMatchingAbstractBase, self).__init__(*anims)
 

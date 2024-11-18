@@ -39,7 +39,40 @@ reactions = [
             13: 11,
         },
     },
+    {
+        'title': 'Benzene2Chlorobenzene',
+        'molecules': [
+            'benzene',
+            'chlorobenzene',
+        ],
+        'chemcodes': [
+            '**6(------)',
+            '**6(----(-Cl)--)',
+        ],
+        'byreactants': [
+            'Cl-Cl',
+        ],
+        'byproducts': [
+            'HCl',
+        ],
+        'substrings_to_isolate': [
+            'benzene'
+        ],
+        'key_map': {
+            0: 0,
+            1: 1,
+            2: 2,
+            3: 3,
+            4: 4,
+            5: 8,
+            6: 9,
+            7: 5,
+            8: 6,
+            9: 11,
+            10: 12,
+        },
+    }
 ]
 
-molecule_classes = create_reaction_classes(reactions, __name__)
+molecule_classes = create_reaction_classes(reactions, __name__, numbering=False)
 globals().update(molecule_classes)

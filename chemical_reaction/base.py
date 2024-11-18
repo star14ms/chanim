@@ -94,10 +94,13 @@ class ReactioinBase(SceneCairo):
             
         return numbering
     
-    def add_numbering(self, mobject):
+    def add_numbering(self, mobject, file_name=''):
         numbering = self.get_numbering(mobject)
         self.add(numbering)
         self.wait(duration=2)
+        file_path = str(self.renderer.file_writer.image_file_path.parent) + '/' + self.renderer.file_writer.image_file_path.name.replace('.png', f'_{file_name}.png')
+        self.renderer.camera.get_image().save(file_path)
+        self.renderer.file_writer.print_file_ready_message(file_path)
         self.remove(numbering)
 
     def add_keys(self, mobject: VMobject):
@@ -121,7 +124,7 @@ class ReactioinBase(SceneCairo):
         for mobject in mobjects:
             group.add(ChemObject(mobject))
         group.arrange(arrange_direction, buff=arrange_buff).to_edge(edge, buff=edge_buff)
-        
+
         return group
 
     def construct(self):
@@ -130,13 +133,13 @@ class ReactioinBase(SceneCairo):
         byreactants_group = self.build_chem_group(self.byreactants, edge=LEFT, edge_buff=0.75)
         reactants = VGroup(reactant, byreactants_group)
 
-        if self.numbering:
-            self.add_numbering(reactants)
-        self.add_keys(reactants)
-
         self.play(Create(reactant), Write(title_reactant), run_time=1.5)
         self.play(Create(byreactants_group), run_time=1.0)
         self.wait(duration=0.5)
+
+        if self.numbering:
+            self.add_numbering(reactants, 'reactants')
+        self.add_keys(reactants)
 
         title_product = Tex(self.molecules[1], font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
         product = ChemObject(self.chemcodes[1])
@@ -145,16 +148,21 @@ class ReactioinBase(SceneCairo):
 
         animations = [
             TransformMatchingTexColorHighlight(title_reactant, title_product, fade_transform_mismatches=True),
-            TransformMatchingShapesSameLocation(reactants, products, key_map=self.key_map, min_ratio_possible_match=0.1, min_ratio_to_accept_match=0.1),
+            TransformMatchingShapesSameLocation(reactants, products, key_map=self.key_map, target_position=ORIGIN, min_ratio_possible_match=0.1, min_ratio_to_accept_match=0.1),
         ]
         self.wait(duration=1)
         self.play(*animations, run_time=1.5)
+        self.wait(duration=1)
+        self.play([
+            FadeToColor(title_product, WHITE),
+            FadeToColor(products, WHITE),
+        ])
 
         if self.numbering:
-            self.add_numbering(products)
+            self.add_numbering(products, 'products')
 
 
-def create_reaction_classes(reactions, module_name):
+def create_reaction_classes(reactions, module_name, numbering=False):
     """
     Create individual molecule classes dynamically and return a dictionary of class names to class objects.
     """
@@ -168,6 +176,7 @@ def create_reaction_classes(reactions, module_name):
         created_class.byproducts = reaction['byproducts']
         created_class.substrings_to_isolate = reaction['substrings_to_isolate']
         created_class.key_map = reaction['key_map']
+        created_class.numbering = numbering
 
         created_class.__module__ = module_name
         classes[class_name] = created_class
