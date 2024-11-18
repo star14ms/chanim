@@ -159,11 +159,14 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
             all_keys_source = []
             source_map_values = []
         else:
+            def get_key_map_values(mobject):
+                if isinstance(mobject, VGroup):
+                    return [get_key_map_values(submob) for submob in mobject]
+                else:
+                    return [str(submob.key) for submob in mobject[0]]
+                
             key_map = key_map
-            if isinstance(mobject, VGroup):
-                all_keys_source = [str(submob.key) for mobject_single in mobject for submob in mobject_single[0]]
-            else:
-                all_keys_source = [str(submob.key) for submob in mobject[0]]
+            all_keys_source = get_key_map_values(mobject)
             source_map_values = list(source_map.values())
             
         return source_map, target_map, key_map, all_keys_source, source_map_values
