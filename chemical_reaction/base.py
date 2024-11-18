@@ -78,6 +78,7 @@ class ReactioinBase(SceneCairo):
     byproducts = []
     substrings_to_isolate = []
     key_map = {}
+    enzyme = None
     numbering = False
     
     def get_numbering(self, mobject):
@@ -85,7 +86,7 @@ class ReactioinBase(SceneCairo):
         id_shape_map = 0
         for mobject in TransformMatchingShapes.get_mobject_parts(mobject):
             numbering.add(
-                MarkupText(str(id_shape_map))
+                MarkupText(str(id_shape_map), weight=BOLD)
                 .scale(0.5)
                 .move_to(mobject.get_center())
                 .set_color(RED if len(mobject.points) > N_POINTS_THRESHOLD_AS_BOND else GREEN)
@@ -132,9 +133,14 @@ class ReactioinBase(SceneCairo):
         reactant = ChemObject(self.chemcodes[0])
         byreactants_group = self.build_chem_group(self.byreactants, edge=LEFT, edge_buff=0.75)
         reactants = VGroup(reactant, byreactants_group)
+        
+        anims2 = [Create(byreactants_group)]
+        if self.enzyme:
+            enzyme = Tex(self.enzyme, font_size=48).to_edge(DOWN)
+            anims2.append(Create(enzyme))
 
         self.play(Create(reactant), Write(title_reactant), run_time=1.5)
-        self.play(Create(byreactants_group), run_time=1.0)
+        self.play(*anims2, run_time=1.0)
         self.wait(duration=0.5)
 
         if self.numbering:
@@ -145,12 +151,12 @@ class ReactioinBase(SceneCairo):
         product = ChemObject(self.chemcodes[1])
         byproducts_group = self.build_chem_group(self.byproducts, edge=RIGHT, edge_buff=0.75)
         products = VGroup(product, byproducts_group)
-
         animations = [
-            TransformMatchingTexColorHighlight(title_reactant, title_product, fade_transform_mismatches=True),
+            TransformMatchingTexColorHighlight(title_reactant, title_product, target_position=ORIGIN),
             TransformMatchingShapesSameLocation(reactants, products, key_map=self.key_map, target_position=ORIGIN, min_ratio_possible_match=0.1, min_ratio_to_accept_match=0.1),
         ]
-        self.wait(duration=1)
+
+        self.play(FadeOut(enzyme, target_position=ORIGIN, run_time=1)) if self.enzyme else self.wait(duration=1)
         self.play(*animations, run_time=1.5)
         self.wait(duration=1)
         self.play([
@@ -170,12 +176,13 @@ def create_reaction_classes(reactions, module_name, numbering=False):
     for i, reaction in enumerate(reactions):
         class_name = f"{i+1:02d}_" + reaction['title']
         created_class = type(class_name, (ReactioinBase,), {})
-        created_class.molecules = reaction['molecules']
-        created_class.chemcodes = reaction['chemcodes']
-        created_class.byreactants = reaction['byreactants']
-        created_class.byproducts = reaction['byproducts']
-        created_class.substrings_to_isolate = reaction['substrings_to_isolate']
-        created_class.key_map = reaction['key_map']
+        created_class.molecules = reaction.get('molecules')
+        created_class.chemcodes = reaction.get('chemcodes')
+        created_class.byreactants = reaction.get('byreactants', [])
+        created_class.byproducts = reaction.get('byproducts', [])
+        created_class.substrings_to_isolate = reaction.get('substrings_to_isolate', [])
+        created_class.key_map = reaction.get('key_map', None)
+        created_class.enzyme = reaction.get('enzyme', None)
         created_class.numbering = numbering
 
         created_class.__module__ = module_name

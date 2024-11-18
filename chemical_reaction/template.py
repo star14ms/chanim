@@ -17,6 +17,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         transform_mismatches: bool = False,
         fade_transform_mismatches: bool = False,
         key_map: dict | None = None,
+        target_position: str | None = None,
         error_tolerance: float = 0.1,
         min_ratio_possible_match: float = 0.33,
         min_ratio_to_accept_match: float = 0.9,
@@ -116,8 +117,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         elif fade_transform_mismatches:
             anims.append(FadeTransformPieces(fade_source, fade_target, **kwargs))
         else:
-            if 'target_position' in kwargs:
-                target_position = kwargs.pop('target_position')
+            if target_position is not None:
                 fadeout_list = [FadeOut(fade_source_mob, target_position=target_position if len(fade_source_mob.points) > N_POINTS_THRESHOLD_AS_BOND else None, **kwargs) for fade_source_mob in fade_source]
                 anims.append(AnimationGroup(*fadeout_list))
                 fadein_list = [FadeIn(fade_target_mob, target_position=target_position if len(fade_target_mob.points) > N_POINTS_THRESHOLD_AS_BOND else None, **kwargs) for fade_target_mob in fade_target_copy]
@@ -338,6 +338,7 @@ class TransformMatchingTexColorHighlight(TransformMatchingTex):
         transform_mismatches: bool = False,
         fade_transform_mismatches: bool = False,
         key_map: dict | None = None,
+        target_position: str | None = None,
         color_fadeout: str = 'red',
         color_fadein: str = 'green',
         **kwargs,
@@ -396,9 +397,9 @@ class TransformMatchingTexColorHighlight(TransformMatchingTex):
         elif fade_transform_mismatches:
             anims.append(FadeTransformPieces(fade_source, fade_target, **kwargs))
         else:
-            anims.append(FadeOut(fade_source, target_position=fade_target, **kwargs))
+            anims.append(FadeOut(fade_source, target_position=target_position if target_position is not None else fade_target, **kwargs))
             anims.append(
-                FadeIn(fade_target_copy, target_position=fade_target, **kwargs),
+                FadeIn(fade_target_copy, target_position=target_position if target_position is not None else fade_target, **kwargs),
             )
 
         super(TransformMatchingAbstractBase, self).__init__(*anims)
