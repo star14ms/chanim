@@ -64,6 +64,9 @@ def get_mobjects_from(self: SVGMobject, svg: se.SVG, n_lines: int = 6) -> list[V
                     line = se.Line(shape._segments[1].start, shape._segments[1].end)
                     (line.x1, line.y1), (line.x2, line.y2) = points
                     mob = self.line_to_mobject(line)
+                    # self.apply_style_to_mobject(mob, shape)
+                    # if shape.apply:
+                    #     self.handle_transform(mob, shape.transform)
                     mob.id_dashed_cram = id_dashed_cram
                     result.append(mob)
                 id_dashed_cram += 1

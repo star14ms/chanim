@@ -55,10 +55,10 @@ def tex_to_svg_file(
         tex_template = config["tex_template"]
     tex_file = generate_tex_file(expression, environment, tex_template)
 
-    # # check if svg already exists
-    # svg_file = tex_file.with_suffix(".svg")
-    # if svg_file.exists():
-    #     return svg_file
+    # check if svg already exists
+    svg_file = tex_file.with_suffix(".svg")
+    if svg_file.exists():
+        return svg_file
 
     dvi_file = compile_tex(
         tex_file,
@@ -206,7 +206,7 @@ def compile_tex(tex_file: Path, tex_compiler: str, output_format: str) -> Path:
             tex_file,
             tex_dir,
         )
-        # print(command)
+        print(command)
         exit_code = os.system(command)
         if exit_code != 0:
             log_file = tex_file.with_suffix(".log")
@@ -237,7 +237,7 @@ def convert_to_svg(dvi_file: Path, extension: str, page: int = 1):
         Path to generated SVG file.
     """
     result = dvi_file.with_suffix(".svg")
-    if not result.exists(): # or True
+    if not result.exists(): ### or True
         if extension == '.pdf':
             commands = [
                 "pdf2svg",
@@ -258,7 +258,7 @@ def convert_to_svg(dvi_file: Path, extension: str, page: int = 1):
                 ">",
                 os.devnull,
             ]
-        # print(" ".join(commands))
+        print(" ".join(commands))
         os.system(" ".join(commands))
 
     # if the file does not exist now, this means conversion failed

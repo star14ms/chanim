@@ -19,10 +19,12 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         fade_transform_mismatches: bool = False,
         key_map: dict | None = None,
         error_tolerance: float = 0.1,
-        min_ratio_to_accept_match: float = 0.25,
+        min_ratio_possible_match: float = 0.33,
+        min_ratio_to_accept_match: float = 0.9,
         **kwargs,
     ):
         self.error_tolerance = error_tolerance
+        self.min_ratio_possible_match = min_ratio_possible_match
         self.min_ratio_to_accept_match = min_ratio_to_accept_match
 
         if isinstance(mobject, VMobject):
@@ -164,28 +166,33 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
             
         return source_map, target_map, key_map, all_keys_source, source_map_values
 
-    def get_key_map(self, source_map: Mobject, target_map: Mobject, only_using_identical_distances=True) -> dict:
-        distances_between_identical_mobjects, identical_n_points = self.get_possible_distances(source_map, target_map, only_using_identical_distances)
+    def get_key_map(self, source_map: Mobject, target_map: Mobject, matching_level=3) -> dict:
+        if set(source_map.keys()) == set(target_map.keys()):
+            return {key: key for key in source_map}
+        
+        distances_between_identical_mobjects, identical_n_points = self.get_possible_distances(source_map, target_map, matching_level=matching_level)
 
         key_maps = []
         for distance_identical in distances_between_identical_mobjects:
             key_map = self.match_translated_points(distance_identical, identical_n_points, source_map, target_map)
-            matching_ratio = len(key_map) / len(source_map)
 
-            if matching_ratio >= self.min_ratio_to_accept_match or not only_using_identical_distances:
+            if len(key_map) / len(source_map) >= self.min_ratio_possible_match:
                 key_map = self.match_dashed_crams(source_map, target_map, key_map)
                 key_map = self.match_closest_mobjects(source_map, target_map, key_map)
                 key_maps.append(key_map)
 
+                if len(key_map) / len(source_map) > self.min_ratio_to_accept_match:
+                    break
+
         key_map = max(key_maps, key=len) if len(key_maps) != 0 else {}
         # print(len(key_map), len(source_map), len(target_map))
 
-        if len(key_map) >= self.min_ratio_to_accept_match * len(source_map) or not only_using_identical_distances:
+        if len(key_map) / len(source_map) >= self.min_ratio_possible_match or matching_level == 1:
             return key_map if len(key_map) != 0 else None
         else:
-            return self.get_key_map(source_map, target_map, only_using_identical_distances=False)
+            return self.get_key_map(source_map, target_map, matching_level=matching_level-1)
 
-    def get_possible_distances(self, source_map, target_map, only_using_identical_distances):
+    def get_possible_distances(self, source_map, target_map, matching_level=3):
         # Get possible distances between two molecules
         mobject_counter = Counter([len(sm.points) for sm in source_map.values()])
         target_mobject_counter = Counter([len(sm.points) for sm in target_map.values()])
@@ -198,8 +205,8 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         distances_between_identical_mobjects = []
         for mobject_source in source_map.values():
             n_points = len(mobject_source.points)
-            
-            if only_using_identical_distances and n_points not in identical_n_points:
+
+            if (matching_level >= 3 and n_points not in identical_n_points) or (matching_level >= 2 and n_points == 160): # 160 is the number of points of the Hydrogen molecule
                 continue
 
             for mobject_target in target_map.values():
@@ -207,7 +214,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
                     # print(' '.join(map(lambda x: '%.6f' % x, mobject_target.get_center() - mobject_source.get_center())))
                     distances_between_identical_mobjects.append(mobject_target.get_center() - mobject_source.get_center())
 
-        print('n_possible_distances', len(distances_between_identical_mobjects))
+        print(('n identical mobjects' if matching_level == 3 else 'n possible distances'), len(distances_between_identical_mobjects))
         
         return distances_between_identical_mobjects, identical_n_points
 
