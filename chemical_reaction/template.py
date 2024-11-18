@@ -6,8 +6,7 @@ from collections import defaultdict, Counter
 from rich import print
 import numpy as np
 
-
-N_POINTS_THRESHOLD_AS_BOND = 16
+from constant import N_POINTS_THRESHOLD_AS_BOND
 
 
 class TransformMatchingShapesSameLocation(TransformMatchingShapes):
@@ -143,10 +142,10 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
     def original_scale(func):
         def wrapper(*args, **kwargs):
             for arg in args[2:]: # Skip self
-                arg.scale(1 / arg.initial_scale_factor)
+                arg.scale(1 / getattr(arg, 'initial_scale_factor', 1))
             result = func(*args, **kwargs)
             for arg in args[2:]:
-                arg.scale(arg.initial_scale_factor)
+                arg.scale(getattr(arg, 'initial_scale_factor', 1))
             return result
         return wrapper
 
@@ -161,7 +160,10 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
             source_map_values = []
         else:
             key_map = key_map
-            all_keys_source = [str(submob.key) for submob in mobject[0]]
+            if isinstance(mobject, VGroup):
+                all_keys_source = [str(submob.key) for mobject_single in mobject for submob in mobject_single[0]]
+            else:
+                all_keys_source = [str(submob.key) for submob in mobject[0]]
             source_map_values = list(source_map.values())
             
         return source_map, target_map, key_map, all_keys_source, source_map_values
@@ -178,7 +180,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
 
             if len(key_map) / len(source_map) >= self.min_ratio_possible_match:
                 key_map = self.match_dashed_crams(source_map, target_map, key_map)
-                key_map = self.match_closest_mobjects(source_map, target_map, key_map)
+                # key_map = self.match_closest_mobjects(source_map, target_map, key_map)
                 key_maps.append(key_map)
 
                 if len(key_map) / len(source_map) > self.min_ratio_to_accept_match:
