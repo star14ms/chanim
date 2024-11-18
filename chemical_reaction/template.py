@@ -9,13 +9,14 @@ import numpy as np
 from constant import N_POINTS_THRESHOLD_AS_BOND
 
 
-class TransformMatchingShapesSameLocation(TransformMatchingShapes):
+class TransformMatchingLocation(TransformMatchingShapes):
     def __init__(
         self,
         mobject: Mobject,
         target_mobject: Mobject,
         transform_mismatches: bool = False,
         fade_transform_mismatches: bool = False,
+        match_same_location: bool = False,
         key_map: dict | None = None,
         target_position: str | None = None,
         error_tolerance: float = 0.1,
@@ -26,6 +27,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         self.error_tolerance = error_tolerance
         self.min_ratio_possible_match = min_ratio_possible_match
         self.min_ratio_to_accept_match = min_ratio_to_accept_match
+        self.match_same_location = match_same_location
 
         if isinstance(mobject, VMobject):
             group_type = VGroup
@@ -166,12 +168,29 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
             all_keys_source = []
             source_map_values = []
         else:
+            def add_keys(mobject: VMobject):
+                id_shape_map = 0
+
+                def _add_keys(mobject: VMobject):
+                    nonlocal id_shape_map
+
+                    if isinstance(mobject, VGroup):
+                        for mob in mobject:
+                            _add_keys(mob)
+                    else:
+                        for submob in mobject.submobjects[0].submobjects:
+                            submob.key = id_shape_map
+                            id_shape_map += 1
+                            
+                _add_keys(mobject)
+
             def get_key_map_values(mobject):
                 if isinstance(mobject, VGroup):
                     return [get_key_map_values(submob) for submob in mobject]
                 else:
                     return [str(submob.key) for submob in mobject[0]]
                 
+            add_keys(mobject)
             key_map = key_map
             all_keys_source = get_key_map_values(mobject)
             source_map_values = list(source_map.values())
@@ -190,7 +209,8 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
 
             if len(key_map) / len(source_map) >= self.min_ratio_possible_match:
                 key_map = self.match_dashed_crams(source_map, target_map, key_map)
-                # key_map = self.match_closest_mobjects(source_map, target_map, key_map)
+                if not self.match_same_location:
+                    key_map = self.match_closest_mobjects(source_map, target_map, key_map)
                 key_maps.append(key_map)
 
                 if len(key_map) / len(source_map) > self.min_ratio_to_accept_match:
@@ -199,7 +219,7 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         key_map = max(key_maps, key=len) if len(key_maps) != 0 else {}
         # print(len(key_map), len(source_map), len(target_map))
 
-        if len(key_map) / len(source_map) >= self.min_ratio_possible_match or matching_level == 1:
+        if len(key_map) / len(source_map) >= self.min_ratio_possible_match or matching_level == 0:
             return key_map if len(key_map) != 0 else None
         else:
             return self.get_key_map(source_map, target_map, matching_level=matching_level-1)
@@ -217,16 +237,19 @@ class TransformMatchingShapesSameLocation(TransformMatchingShapes):
         distances_between_identical_mobjects = []
         for mobject_source in source_map.values():
             n_points = len(mobject_source.points)
-
-            if (matching_level >= 3 and n_points not in identical_n_points) or (matching_level >= 2 and n_points == 160): # 160 is the number of points of the Hydrogen molecule
+            
+            # 160 is the number of points of the Hydrogen molecule
+            if (matching_level >= 3 and n_points not in identical_n_points) or \
+                (matching_level >= 2 and n_points == 160) or \
+                (matching_level >= 1 and n_points <= N_POINTS_THRESHOLD_AS_BOND):
                 continue
 
             for mobject_target in target_map.values():
-                if len(mobject_target.points) == n_points and n_points > N_POINTS_THRESHOLD_AS_BOND:
+                if len(mobject_target.points) == n_points:
                     # print(' '.join(map(lambda x: '%.6f' % x, mobject_target.get_center() - mobject_source.get_center())))
                     distances_between_identical_mobjects.append(mobject_target.get_center() - mobject_source.get_center())
 
-        print(('n identical mobjects' if matching_level == 3 else 'n possible distances'), len(distances_between_identical_mobjects))
+        print(('n identical mobjects' if matching_level == 3 else 'n similar mobjects'), len(distances_between_identical_mobjects))
         
         return distances_between_identical_mobjects, identical_n_points
 
@@ -476,7 +499,7 @@ def construct_chemobject_animation(self, verbose=False):
             prev_title = prev_titles[0][k] if len(prev_titles[0]) > k else Tex(prev_titles[0][k-1].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
             next_title = next_titles[0][k] if len(next_titles[0]) > k else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
             animations.append(TransformMatchingTexColorHighlight(prev_title, next_title, fade_transform_mismatches=True))
-        animations.append(TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0])) # , key_map=key_map
+        animations.append(TransformMatchingLocation(prev_molecules[0], next_molecules[0])) # , key_map=key_map
 
         n_molecules *= len(self.molecules[0])
         next_purural_sign = Tex('x{}'.format(n_molecules), font_size=48).next_to(next_titles[0], RIGHT)
@@ -549,7 +572,7 @@ def construct_chemobject_animation(self, verbose=False):
                     prev_molecules[0].submobjects[0].submobjects[n].key = n
 
             animations2.extend([
-                TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0], key_map=key_map) 
+                TransformMatchingLocation(prev_molecules[0], next_molecules[0], key_map=key_map) 
             ])
 
         elif len(molecule) == 2:
@@ -619,9 +642,9 @@ def construct_chemobject_animation(self, verbose=False):
                     key_map = key_map.get(next_title.tex_string, None)
 
                 if len(prev_molecules) == 1 and prev_molecule_parts_to_separate:
-                    animations2.append(TransformMatchingShapesSameLocation(prev_molecules_partial[j], next_molecule, key_map=key_map))
+                    animations2.append(TransformMatchingLocation(prev_molecules_partial[j], next_molecule, key_map=key_map))
                 else:
-                    animations2.append(TransformMatchingShapesSameLocation(prev_molecule, next_molecule, key_map=key_map))
+                    animations2.append(TransformMatchingLocation(prev_molecule, next_molecule, key_map=key_map))
 
         if len(byreaction) > 0 and len(byreaction[0]) != 0:
             for byreactant, byproduct in zip(byreactants_group, byproducts_group):
@@ -644,7 +667,7 @@ def construct_chemobject_animation(self, verbose=False):
                 prev_title = prev_titles[0][k] if len(prev_titles[0]) > k else Tex(prev_titles[0][k-1].tex_string, font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
                 next_title = next_titles[0][k] if len(next_titles[0]) > k else Tex('', font_size=64, substrings_to_isolate=self.substrings_to_isolate)
                 animations.append(TransformMatchingTexColorHighlight(prev_title, next_title, fade_transform_mismatches=True))
-            animations.append(TransformMatchingShapesSameLocation(prev_molecules[0], next_molecules[0])) # , key_map=key_map
+            animations.append(TransformMatchingLocation(prev_molecules[0], next_molecules[0])) # , key_map=key_map
 
             n_molecules *= len(molecule)
             next_purural_sign = Tex('x{}'.format(n_molecules), font_size=48).next_to(next_titles[0], RIGHT)

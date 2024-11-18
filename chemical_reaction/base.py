@@ -3,7 +3,7 @@ from chanim_manim import *
 from template import (
     construct_chemobject, 
     construct_chemobject_animation, 
-    TransformMatchingShapesSameLocation, 
+    TransformMatchingLocation, 
     TransformMatchingTexColorHighlight,
 )
 from constant import N_POINTS_THRESHOLD_AS_BOND
@@ -71,17 +71,10 @@ def create_Scenes(title, molecules, chemcodes, enzymes, by_reactants_products, m
     return molecule_classes, main_class
 
 
-class ReactioinBase(SceneCairo):
-    molecules = []
-    chemcodes = []
-    byreactants = []
-    byproducts = []
-    substrings_to_isolate = []
-    key_map = {}
-    enzyme = None
-    numbering = False
-    
-    def get_numbering(self, mobject):
+class ReactionScene(SceneCairo):
+
+    @staticmethod
+    def get_numbering(mobject: Mobject):
         numbering = VGroup()
         id_shape_map = 0
         for mobject in TransformMatchingShapes.get_mobject_parts(mobject):
@@ -94,8 +87,10 @@ class ReactioinBase(SceneCairo):
             id_shape_map += 1
             
         return numbering
-    
-    def add_numbering(self, mobject, file_name=''):
+
+    def add_numbering(self, mobject: Mobject, file_name: str):
+        color = mobject.color 
+        mobject.set_color(WHITE)
         numbering = self.get_numbering(mobject)
         self.add(numbering)
         self.wait(duration=2)
@@ -103,24 +98,10 @@ class ReactioinBase(SceneCairo):
         self.renderer.camera.get_image().save(file_path)
         self.renderer.file_writer.print_file_ready_message(file_path)
         self.remove(numbering)
+        mobject.set_color(color)
 
-    def add_keys(self, mobject: VMobject):
-        id_shape_map = 0
-
-        def _add_keys(mobject: VMobject):
-            nonlocal id_shape_map
-
-            if isinstance(mobject, VGroup):
-                for mob in mobject:
-                    _add_keys(mob)
-            else:
-                for submob in mobject.submobjects[0].submobjects:
-                    submob.key = id_shape_map
-                    id_shape_map += 1
-                    
-        _add_keys(mobject)
-
-    def build_chem_group(self, mobjects: list[VMobject], arrange_direction=DOWN, arrange_buff=0.5, edge=LEFT, edge_buff=0.75):
+    @staticmethod
+    def build_chem_group(mobjects: list[VMobject], arrange_direction=DOWN, arrange_buff=0.5, edge=LEFT, edge_buff=0.75):
         group = VGroup()
         for mobject in mobjects:
             group.add(ChemObject(mobject))
@@ -128,6 +109,17 @@ class ReactioinBase(SceneCairo):
 
         return group
 
+
+class SingleReaction(ReactionScene):
+    molecules = []
+    chemcodes = []
+    byreactants = []
+    byproducts = []
+    substrings_to_isolate = []
+    key_map = {}
+    enzyme = None
+    numbering = False
+    
     def construct(self):
         title_reactant = Tex(self.molecules[0], font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
         reactant = ChemObject(self.chemcodes[0])
@@ -145,7 +137,6 @@ class ReactioinBase(SceneCairo):
 
         if self.numbering:
             self.add_numbering(reactants, 'reactants')
-        self.add_keys(reactants)
 
         title_product = Tex(self.molecules[1], font_size=64, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
         product = ChemObject(self.chemcodes[1])
@@ -153,7 +144,7 @@ class ReactioinBase(SceneCairo):
         products = VGroup(product, byproducts_group)
         animations = [
             TransformMatchingTexColorHighlight(title_reactant, title_product, target_position=ORIGIN),
-            TransformMatchingShapesSameLocation(reactants, products, key_map=self.key_map, target_position=ORIGIN, min_ratio_possible_match=0.1, min_ratio_to_accept_match=0.1),
+            TransformMatchingLocation(reactants, products, key_map=self.key_map, target_position=ORIGIN, match_same_location=True, min_ratio_possible_match=0.1, min_ratio_to_accept_match=0.1),
         ]
 
         self.play(FadeOut(enzyme, target_position=ORIGIN, run_time=1)) if self.enzyme else self.wait(duration=1)
@@ -175,7 +166,7 @@ def create_reaction_classes(reactions, module_name, numbering=False):
     classes = {}
     for i, reaction in enumerate(reactions):
         class_name = f"{i+1:02d}_" + reaction['title']
-        created_class = type(class_name, (ReactioinBase,), {})
+        created_class = type(class_name, (SingleReaction,), {})
         created_class.molecules = reaction.get('molecules')
         created_class.chemcodes = reaction.get('chemcodes')
         created_class.byreactants = reaction.get('byreactants', [])

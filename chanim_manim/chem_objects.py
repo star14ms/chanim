@@ -155,6 +155,8 @@ class ChemObject(MathTexPdf2Svg):
             node_style=node_style,
             bond_style=bond_style,
         )
+        
+        chemfig_params = self.compile_chemifg_params(chemfig_params)
 
         super().__init__(
             "\\chemfig[%s]{%s}" % (chemfig_params, chem_code),
@@ -169,6 +171,12 @@ class ChemObject(MathTexPdf2Svg):
             self.scale(self.initial_scale_factor)
         else:
             self.initial_scale_factor = 1
+            
+    def compile_chemifg_params(self, chemfig_params):
+        chemfig_params = [
+            f"{key}={value}" for key, value in chemfig_params.items()
+        ]
+        return ",".join(chemfig_params)
 
     def set_ion_position(
         self, string_number=0, e_index=0, final_atom_index=1, direction=LEFT
