@@ -121,9 +121,9 @@ class Alkanes(ReactionScene):
             ])
             animations2 = [Write(numbering_next_partial) for numbering_next_partial in numbering_next[len(numbering_prev):]]
 
-            if number_of_C == 11:
+            if number_of_C == 8:
                 speed_factor = 0.8
-            elif number_of_C == 21:
+            elif number_of_C == 13:
                 speed_factor = 0.6
 
             self.play([
@@ -139,27 +139,34 @@ class Alkanes(ReactionScene):
             self.remove(numbering_prev)
             self.remove(title_prev)
             self.wait(duration=0.5 * speed_factor)
+ 
+            if number_of_C == 10:
+                chem_next, numbering_next = self.transform_to_line_diagram_and_back(chem_next, numbering_next)
 
-        self.transform_to_line_diagram(numbering_next, chem_next)
-
-    def transform_to_line_diagram(self, numbering_next, chem_next):
+    def transform_to_line_diagram_and_back(self, chem_next, numbering_next):
         subtitle1 = Tex('Structural Formula', font_size=48).to_edge(DOWN)
         numbering_next.set_color(RED)
         self.play(Write(subtitle1), FadeOut(numbering_next))
         self.wait(duration=1)
 
-        line_diagram_1 = ChemObject('-'.join(['C']*self.number_of_C_list[-1]), auto_scale=False).scale(chem_next.initial_scale_factor)
+        line_diagram_1 = ChemObject('-'.join(['C']*len(numbering_next)), auto_scale=False).scale(chem_next.initial_scale_factor)
         line_diagram_1.initial_scale_factor = chem_next.initial_scale_factor
         self.play(TransformMatchingLocation(chem_next, line_diagram_1, min_ratio_possible_match=0.01, min_ratio_to_accept_match=0.3, match_same_location=True), run_time=1)
         # self.add_numbering(line_diagram_1, file_name='line_diagram_1')
 
-        chemcode = '-[2]' + ''.join('-[22]' if n % 2 == 0 else '-[2]' for n in range(self.number_of_C_list[-1]-2))
+        chemcode = '-[2]' + ''.join('-[22]' if n % 2 == 0 else '-[2]' for n in range(len(numbering_next)-2))
         line_diagram2 = ChemObject(chemcode, chemfig_params=self.chemfig_params, auto_scale=False)
         line_diagram2.scale(line_diagram_1.width / line_diagram2.width)
         subtitle2 = Tex('Skeletal Formula', font_size=48).to_edge(DOWN)
         self.play(TransformMatchingLocation(line_diagram_1, line_diagram2, key_map=self.key_map), FadeTransform(subtitle1, subtitle2), run_time=1.5)
         # self.add_numbering(line_diagram2, file_name='line_diagram')
-        self.wait(duration=3)
+        self.wait(duration=1)
+
+        self.play(FadeOut(subtitle2), TransformMatchingLocation(line_diagram2, line_diagram_1, color_fadeout='white', color_fadein='white'), run_time=1.5)
+        numbering_next.set_color(WHITE)
+        self.play(TransformMatchingLocation(line_diagram_1, chem_next, min_ratio_possible_match=0.01, min_ratio_to_accept_match=0.3, match_same_location=True, color_fadeout='white', color_fadein='white'), FadeIn(numbering_next), run_time=1)
+
+        return chem_next, numbering_next
 
     def carbon_numbering(self, mobject, n_prev_carbon=0):
         numbering = VGroup()

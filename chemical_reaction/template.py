@@ -19,6 +19,8 @@ class TransformMatchingLocation(TransformMatchingShapes):
         match_same_location: bool = False,
         key_map: dict | None = None,
         target_position: str | None = None,
+        color_fadeout: str = 'red',
+        color_fadein: str = 'green',
         error_tolerance: float = 0.1,
         min_ratio_possible_match: float = 0.33,
         min_ratio_to_accept_match: float = 0.9,
@@ -105,10 +107,10 @@ class TransformMatchingLocation(TransformMatchingShapes):
         # print(source_map)
         # print(target_map)
         for key in source_map:
-            source_map[key].set_color('red') # added
+            source_map[key].set_color(color_fadeout) # added
             fade_source.add(source_map[key])
         for key in target_map:
-            target_map[key].set_color('green') # added
+            target_map[key].set_color(color_fadein) # added
             fade_target.add(target_map[key])
         fade_target_copy = fade_target.copy()
 
@@ -408,10 +410,10 @@ class TransformMatchingTexColorHighlight(TransformMatchingTex):
         fade_source = group_type()
         fade_target = group_type()
         for key in set(source_map).difference(target_map):
-            source_map[key].set_color(color_fadeout) ### set color
+            source_map[key].set_color(color_fadeout)
             fade_source.add(source_map[key])
         for key in set(target_map).difference(source_map):
-            target_map[key].set_color(color_fadein) ### set color
+            target_map[key].set_color(color_fadein)
             fade_target.add(target_map[key])
         fade_target_copy = fade_target.copy()
 
