@@ -81,70 +81,75 @@ class Alkanes(ReactionScene):
         self.play(FadeToColor(numbering_next, WHITE), run_time=0.5)
         self.wait(duration=0.5)
 
-        for i, (molecule, number_of_C) in enumerate(zip(self.molecules[1:], self.number_of_C_list[1:])):
+        for i, (molecule, n_carbon) in enumerate(zip(self.molecules[1:], self.number_of_C_list[1:])):
             title_prev = title_next
             chem_prev = chem_next
             numbering_prev = numbering_next
 
-            if i == 0:
-                print(f'number of C: 2 (+1C)')
-                chemcode = self.chemcode_secondary
-            else:
-                print(f'number of C: {number_of_C} (+{number_of_C - self.number_of_C_list[i]}C)')
-                chemcode = \
-                    chemcode[:self.len_chemcode_prefix+(self.number_of_C_list[i]-2)*len(self.chemcode_to_add)] + \
-                    (number_of_C - self.number_of_C_list[i])*self.chemcode_to_add + \
-                    self.chemcode_secondary[self.len_chemcode_prefix:]
+            title_next, chem_next, numbering_next, chemcode = self.build_next_objects(molecule, n_carbon, chemcode, i)
 
-            # if i < len(self.molecules[1:]) - 1:
-            #     continue
-
-            title_next = VMobject()
-            for n, title_line in enumerate(molecule.split('\n')):
-                title_next.add(ChemObject(title_line, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate))
-            title_next.arrange(DOWN).to_edge(UP)
-
-            chem_next = ChemObject(chemcode, chemfig_params=self.chemfig_params)
-            numbering_next = self.carbon_numbering(chem_next, n_prev_carbon=self.number_of_C_list[i])
-
-            animations = []
-            for n in range(max(len(title_prev), len(title_next))):
-                title_prev_line = title_prev[n] if len(title_prev) > n else ChemObject(title_prev[n-1].tex_string, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
-                title_next_line = title_next[n] if len(title_next) > n else ChemObject('', font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate)
-                animations.append(TransformMatchingElementTex(title_prev_line, title_next_line))
-
-            animations.extend([
-                Transform(numbering_prev_part, numbering_next_part) for numbering_prev_part, numbering_next_part in zip(
-                    TransformMatchingShapes.get_mobject_parts(numbering_prev), 
-                    TransformMatchingShapes.get_mobject_parts(numbering_next)
-                )
-            ])
-            animations2 = [Write(numbering_next_partial) for numbering_next_partial in numbering_next[len(numbering_prev):]]
-
-            if number_of_C == 8:
-                speed_factor = 0.8
-            elif number_of_C == 13:
+            if n_carbon >= 13:
                 speed_factor = 0.6
+            elif n_carbon >= 8:
+                speed_factor = 0.8
 
-            self.play([
-                TransformMatchingLocation(chem_prev, chem_next, match_same_location=True, min_ratio_possible_match=0.01), 
-                *animations,
-            ], run_time=1.0 * speed_factor)
-            self.play(*animations2, run_time=0.5 * speed_factor)
-            self.play([
-                FadeToColor(title_next, WHITE),
-                FadeToColor(chem_next, WHITE),
-                FadeToColor(numbering_next, WHITE),
-            ], run_time=0.5 * speed_factor)
-            self.remove(numbering_prev)
-            self.remove(title_prev)
-            self.wait(duration=0.5 * speed_factor)
+            self.apply_next_objects(title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, speed_factor=speed_factor)
  
-            if number_of_C == 10:
+            if n_carbon == 10:
                 chem_next, numbering_next = self.transform_to_line_diagram_and_back(chem_next, numbering_next)
 
+    def build_next_objects(self, molecule, n_carbon, chemcode, i):
+        if i == 0:
+            print(f'number of C: 2 (+1C)')
+            chemcode = self.chemcode_secondary
+        else:
+            print(f'number of C: {n_carbon} (+{n_carbon - self.number_of_C_list[i]}C)')
+            chemcode = \
+                chemcode[:self.len_chemcode_prefix+(self.number_of_C_list[i]-2)*len(self.chemcode_to_add)] + \
+                (n_carbon - self.number_of_C_list[i])*self.chemcode_to_add + \
+                self.chemcode_secondary[self.len_chemcode_prefix:]
+        
+        title_next = VMobject()
+        for n, title_line in enumerate(molecule.split('\n')):
+            title_next.add(ChemObject(title_line, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate))
+        title_next.arrange(DOWN).to_edge(UP)
+
+        chem_next = ChemObject(chemcode, chemfig_params=self.chemfig_params)
+        numbering_next = self.carbon_numbering(chem_next, n_prev_carbon=self.number_of_C_list[i])
+        
+        return title_next, chem_next, numbering_next, chemcode
+
+    def apply_next_objects(self, title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, speed_factor=1.0):
+        animations = []
+        for n in range(max(len(title_prev), len(title_next))):
+            title_prev_line = title_prev[n] if len(title_prev) > n else ChemObject(title_prev[n-1].tex_string, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
+            title_next_line = title_next[n] if len(title_next) > n else ChemObject('', font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate)
+            animations.append(TransformMatchingElementTex(title_prev_line, title_next_line))
+
+        animations.extend([
+            Transform(numbering_prev_part, numbering_next_part) for numbering_prev_part, numbering_next_part in zip(
+                TransformMatchingShapes.get_mobject_parts(numbering_prev), 
+                TransformMatchingShapes.get_mobject_parts(numbering_next)
+            )
+        ])
+        animations2 = [Write(numbering_next_partial) for numbering_next_partial in numbering_next[len(numbering_prev):]]
+
+        self.play([
+            TransformMatchingLocation(chem_prev, chem_next, match_same_location=True, min_ratio_possible_match=0.01), 
+            *animations,
+        ], run_time=1.0 * speed_factor)
+        self.play(*animations2, run_time=0.5 * speed_factor)
+        self.play([
+            FadeToColor(title_next, WHITE),
+            FadeToColor(chem_next, WHITE),
+            FadeToColor(numbering_next, WHITE),
+        ], run_time=0.5 * speed_factor)
+        self.remove(numbering_prev)
+        self.remove(title_prev)
+        self.wait(duration=0.5 * speed_factor)
+
     def transform_to_line_diagram_and_back(self, chem_next, numbering_next):
-        subtitle1 = Tex('Structural Formula', font_size=48).to_edge(DOWN)
+        subtitle1 = Tex('Structural Formula', font_size=48, substrings_to_isolate=['Formula']).to_edge(DOWN)
         numbering_next.set_color(RED)
         self.play(Write(subtitle1), FadeOut(numbering_next))
         self.wait(duration=1)
@@ -157,8 +162,8 @@ class Alkanes(ReactionScene):
         chemcode = '-[2]' + ''.join('-[22]' if n % 2 == 0 else '-[2]' for n in range(len(numbering_next)-2))
         line_diagram2 = ChemObject(chemcode, chemfig_params=self.chemfig_params, auto_scale=False)
         line_diagram2.scale(line_diagram_1.width / line_diagram2.width)
-        subtitle2 = Tex('Skeletal Formula', font_size=48).to_edge(DOWN)
-        self.play(TransformMatchingLocation(line_diagram_1, line_diagram2, key_map=self.key_map), FadeTransform(subtitle1, subtitle2), run_time=1.5)
+        subtitle2 = Tex('Skeletal Formula', font_size=48, substrings_to_isolate=['Formula']).to_edge(DOWN)
+        self.play(TransformMatchingLocation(line_diagram_1, line_diagram2, key_map=self.key_map), TransformMatchingTex(subtitle1, subtitle2), run_time=1.5)
         # self.add_numbering(line_diagram2, file_name='line_diagram')
         self.wait(duration=1)
 
