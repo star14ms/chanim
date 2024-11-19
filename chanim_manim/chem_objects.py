@@ -141,6 +141,8 @@ class ChemObject(MathTexPdf2Svg):
         stroke_width: str = 2,
         tex_template=ChemTemplate,
         max_initial_height=110,
+        max_initial_width=13,
+        auto_scale=True,
         **kwargs,
     ):
         # digest_config(self, kwargs)
@@ -166,12 +168,15 @@ class ChemObject(MathTexPdf2Svg):
             **kwargs,
         )
 
-        if self.initial_height > max_initial_height:
-            self.initial_scale_factor = max_initial_height / self.initial_height
+        self.initial_scale_factor = 1
+
+        if auto_scale:
+            if self.initial_height > max_initial_height:
+                self.initial_scale_factor = max_initial_height / self.initial_height
+            if self.width > max_initial_width:
+                self.initial_scale_factor = min(max_initial_width / self.width, self.initial_scale_factor)
             self.scale(self.initial_scale_factor)
-        else:
-            self.initial_scale_factor = 1
-            
+
     def compile_chemifg_params(self, chemfig_params):
         chemfig_params = [
             f"{key}={value}" for key, value in chemfig_params.items()

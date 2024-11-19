@@ -206,14 +206,16 @@ class TransformMatchingLocation(TransformMatchingShapes):
         key_maps = []
         for distance_identical in distances_between_identical_mobjects:
             key_map = self.match_translated_points(distance_identical, identical_n_points, source_map, target_map)
+            matching_ratio = len(key_map) / len(source_map)
 
-            if len(key_map) / len(source_map) >= self.min_ratio_possible_match:
+            if matching_ratio >= self.min_ratio_possible_match:
                 key_map = self.match_dashed_crams(source_map, target_map, key_map)
                 if not self.match_same_location:
                     key_map = self.match_closest_mobjects(source_map, target_map, key_map)
                 key_maps.append(key_map)
-
-                if len(key_map) / len(source_map) > self.min_ratio_to_accept_match:
+                matching_ratio = len(key_map) / len(source_map)
+                # print('matching_ratio', matching_ratio)
+                if matching_ratio > self.min_ratio_to_accept_match:
                     break
 
         key_map = max(key_maps, key=len) if len(key_maps) != 0 else {}
@@ -429,6 +431,31 @@ class TransformMatchingTexColorHighlight(TransformMatchingTex):
 
         self.to_remove = [mobject, fade_target_copy]
         self.to_add = target_mobject
+
+
+class TransformMatchingElementTex(TransformMatchingTexColorHighlight):
+    def get_shape_map(self, mobject: Mobject) -> dict:
+        shape_map = super().get_shape_map(mobject)
+
+        if len(shape_map) != 1:
+            return shape_map
+
+        key = list(shape_map.keys())[0]
+        shape_map = {}
+        rest_group = VGroup()
+
+        for submob in mobject.submobjects[0].submobjects:
+            n_points = len(submob.points)
+            if 'C' in mobject.tex_string and n_points == 64:
+                shape_map['C'] = submob
+            elif 'H' in mobject.tex_string and n_points == 160:
+                shape_map['H'] = submob
+            else:
+                rest_group.add(submob)
+
+        shape_map[key] = rest_group
+
+        return shape_map
 
 
 def construct_chemobject(self):
