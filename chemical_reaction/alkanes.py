@@ -83,12 +83,12 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
         self.play(FadeToColor(numbering_next, WHITE), run_time=0.5)
         self.wait(duration=0.5)
         
-        ax = self.create_and_draw_axes(corner=DL, shift=DR*0.2)
+        ax, labels = self.create_and_draw_axes(corner=DL, shift=DR*0.2)
         x0 = 1
         n_carbons = list(range(x0, self.max_n_carbons))
 
-        t, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next = self.add_dynamic_graph(ax, x0, n_carbons)
-        frame = self.highlight_graph(ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp)
+        t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next = self.add_dynamic_graph(ax, x0, n_carbons)
+        frame, zoomed_display_frame, zd_rect = self.highlight_graph(ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp)
         frame_offset = ax.get_corner(DL) - frame.get_corner(DL)
 
         for i, (molecule, n_carbon) in enumerate(zip(self.molecules[1:], self.number_of_C_list[1:])):
@@ -98,21 +98,30 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
             label_bp_prev = label_bp_next
             label_mp_prev = label_mp_next
 
-            label_bp_next, label_mp_next, dot_bp, dot_mp, scale_factor, vector_to_shift = \
-                self.build_next_graph_objects(ax, frame, n_carbon, frame_offset, h_line_bp, h_line_mp
-            )
-
             title_next, chem_next, numbering_next, chemcode = self.build_next_objects(molecule, n_carbon, chemcode, i)
             speed_factor = self.get_new_speed_factor(n_carbon)
+            
+            if n_carbon < 30:
+                label_bp_next, label_mp_next, dot_bp, dot_mp, scale_factor, vector_to_shift = \
+                    self.build_next_graph_objects(ax, frame, n_carbon, frame_offset, h_line_bp, h_line_mp
+                )
+                graph_animations = self.build_animation_next_graph(
+                    t, frame, n_carbon, vector_to_shift, scale_factor, 
+                    label_bp_prev, label_bp_next, label_mp_prev, label_mp_next, dot_bp, dot_mp
+                )
+            elif n_carbon == 30:
+                group_to_ignore = VGroup(ax, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self.dots)
+                self.play(group_to_ignore.animate.set_opacity(0))
+                self.remove(group_to_ignore)
+                graph_animations = [[], [], []]
+            else:
+                graph_animations = [[], [], []]
 
-            graph_animations = self.build_animation_next_graph(
-                t, frame, n_carbon, vector_to_shift, scale_factor, 
-                label_bp_prev, label_bp_next, label_mp_prev, label_mp_next, dot_bp, dot_mp
-            )
-            self.apply_next_objects(title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, speed_factor=speed_factor)
- 
+            self.apply_next_objects(title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, n_carbon, frame, zoomed_display_frame, speed_factor=speed_factor)
+
             if n_carbon == 10:
-                chem_next, numbering_next = self.transform_to_line_diagram_and_back(chem_next, numbering_next)
+                group_to_ignore = VGroup(ax, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self.dots)
+                chem_next, numbering_next = self.transform_to_line_diagram_and_back(chem_next, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame)
 
     def build_next_objects(self, molecule, n_carbon, chemcode, i):
         if i == 0:
@@ -135,7 +144,7 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
         
         return title_next, chem_next, numbering_next, chemcode
 
-    def apply_next_objects(self, title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, speed_factor=1.0):
+    def apply_next_objects(self, title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, n_carbon, frame, zoomed_display_frame, speed_factor=1.0):
         animations = []
         for n in range(max(len(title_prev), len(title_next))):
             title_prev_line = title_prev[n] if len(title_prev) > n else ChemObject(title_prev[n-1].tex_string, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
@@ -148,6 +157,9 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
                 TransformMatchingShapes.get_mobject_parts(numbering_next)
             )
         ])
+        if n_carbon == 20:
+            self.play(self.get_zoomed_display_pop_out_animation(), rate_func=lambda t: smooth(1 - t))
+            self.play(Uncreate(zoomed_display_frame), FadeOut(frame))
         animations2 = [Write(numbering_next_partial) for numbering_next_partial in numbering_next[len(numbering_prev):]]
 
         self.play([
@@ -155,8 +167,9 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
             *animations,
         ], run_time=1.5 * speed_factor)
         self.play(*animations2, run_time=0.5 * speed_factor)
-        self.play(*graph_animations[0], run_time=0.5 * speed_factor)
-        self.play(*graph_animations[1], run_time=1.0 * speed_factor)
+        if graph_animations[0] != []:
+            self.play(*graph_animations[0], run_time=0.5 * speed_factor)
+            self.play(*graph_animations[1], run_time=1.0 * speed_factor)
         self.play([
             FadeToColor(VGroup(title_next, chem_next, numbering_next), WHITE),
             *graph_animations[2],
@@ -165,10 +178,10 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
         self.remove(title_prev)
         self.wait(duration=0.5 * speed_factor)
 
-    def transform_to_line_diagram_and_back(self, chem_next, numbering_next):
+    def transform_to_line_diagram_and_back(self, chem_next, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame):
         subtitle1 = Tex('Structural Formula', font_size=48, substrings_to_isolate=['Formula']).to_edge(DOWN)
         numbering_next.set_color(RED)
-        self.play(Write(subtitle1), FadeOut(numbering_next))
+        self.play(Write(subtitle1), FadeOut(numbering_next), group_to_ignore.animate.set_opacity(0), zd_rect.animate.set_opacity(1), zoomed_display_frame.animate.set_color(BLACK))
         self.wait(duration=1)
 
         line_diagram_1 = ChemObject('-'.join(['C']*len(numbering_next)), auto_scale=False).scale(chem_next.initial_scale_factor)
@@ -186,7 +199,13 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
 
         self.play(FadeOut(subtitle2), TransformMatchingLocation(line_diagram2, line_diagram_1, color_fadeout='white', color_fadein='white'), run_time=1.5)
         numbering_next.set_color(WHITE)
-        self.play(TransformMatchingLocation(line_diagram_1, chem_next, min_ratio_possible_match=0.01, min_ratio_to_accept_match=0.3, match_same_location=True, color_fadeout='white', color_fadein='white'), FadeIn(numbering_next), run_time=1)
+        self.play(
+            TransformMatchingLocation(
+                line_diagram_1, chem_next, min_ratio_possible_match=0.01, min_ratio_to_accept_match=0.3, match_same_location=True, 
+                color_fadeout='white', color_fadein='white'), 
+            FadeIn(numbering_next), 
+            group_to_ignore.animate.set_opacity(1), zd_rect.animate.set_opacity(0), zoomed_display_frame.animate.set_color(PURPLE),
+        run_time=1),
 
         return chem_next, numbering_next
 
@@ -208,9 +227,9 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
     def get_new_speed_factor(self, n_carbon):
         if n_carbon >= 18:
             return 0.5
-        elif n_carbon >= 11:
+        elif n_carbon >= 13:
             return 0.6
-        elif n_carbon >= 6:
+        elif n_carbon >= 10:
             return 0.8
         else:
             return 1.0
