@@ -52,7 +52,8 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
 
     def construct(self):
         # ax, labels = self.create_and_draw_axes()
-        ax, labels = self.create_and_draw_axes(corner=DL, shift=DR*0.2)
+        ax, labels = self.create_axes_and_labels(corner=DL)
+        self.play(LaggedStart(Write(ax),  Write(labels), run_time=3, lag_ratio=0.5))
         x0 = 1
         n_carbons = list(range(x0, self.max_n_carbons))
 
@@ -91,20 +92,12 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
             tips=False,
         )
 
-    def create_and_draw_axes(self, corner=ORIGIN, shift=0):
+    def create_axes_and_labels(self, corner=ORIGIN, shift=0):
         ax = self.create_axes()
         ax.scale(self.axes_scale).to_corner(corner).shift(shift)
         labels = ax.get_axis_labels(
             x_label=Tex("N Carbon", font_size=max(32, 48*self.axes_scale)), y_label=Tex("Temperature ($^\circ C$)", font_size=max(32, 48*self.axes_scale))
         )
-
-        self.play(
-            LaggedStart(
-            Write(ax), 
-            Write(labels),
-            run_time=3,
-            lag_ratio=0.5,
-        ))
         return ax, labels
 
     def add_dynamic_graph(self, ax: Axes, x0, n_carbons):
