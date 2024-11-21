@@ -219,7 +219,7 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         x_prev = math.floor(x)
         x_next = x_prev + 1
         y_prev = self.boiling_points[x_prev-1]
-        y_next = self.boiling_points[x_next-1]
+        y_next = self.boiling_points[x_prev-1]
 
         return calculate_y(x_prev, y_prev, x_next, y_next, x)
 
@@ -227,7 +227,7 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         x_prev = math.floor(x)
         x_next = x_prev + 1
         y_prev = self.melting_points[x_prev-1]
-        y_next = self.melting_points[x_next-1]
+        y_next = self.melting_points[x_prev-1]
 
         return calculate_y(x_prev, y_prev, x_next, y_next, x)
 
