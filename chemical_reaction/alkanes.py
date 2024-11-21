@@ -111,13 +111,14 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
                 )
             elif n_carbon == 30:
                 group_to_ignore = VGroup(ax, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self.dots)
-                self.play(group_to_ignore.animate.set_opacity(0))
+                self.play(group_to_ignore.animate.set_opacity(0), run_time=1.0 * speed_factor)
                 self.remove(group_to_ignore)
                 graph_animations = [[], [], []]
             else:
                 graph_animations = [[], [], []]
 
             self.apply_next_objects(title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, n_carbon, frame, zoomed_display_frame, speed_factor=speed_factor)
+            self.dots.add(dot_bp, dot_mp)
 
             if n_carbon == 10:
                 group_to_ignore = VGroup(ax, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self.dots)
@@ -158,8 +159,8 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
             )
         ])
         if n_carbon == 20:
-            self.play(self.get_zoomed_display_pop_out_animation(), rate_func=lambda t: smooth(1 - t))
-            self.play(Uncreate(zoomed_display_frame), FadeOut(frame))
+            self.play(self.get_zoomed_display_pop_out_animation(), rate_func=lambda t: smooth(1 - t), run_time=1.0 * speed_factor)
+            self.play(Uncreate(zoomed_display_frame), FadeOut(frame), run_time=1.0 * speed_factor)
         animations2 = [Write(numbering_next_partial) for numbering_next_partial in numbering_next[len(numbering_prev):]]
 
         self.play([
@@ -178,7 +179,7 @@ class Alkanes(ReactionScene, AlkaneMeltingAndBoilingPointGraph):
         self.remove(title_prev)
         self.wait(duration=0.5 * speed_factor)
 
-    def transform_to_line_diagram_and_back(self, chem_next, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame):
+    def transform_to_line_diagram_and_back(self, chem_next: Mobject, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame):
         subtitle1 = Tex('Structural Formula', font_size=48, substrings_to_isolate=['Formula']).to_edge(DOWN)
         numbering_next.set_color(RED)
         self.play(Write(subtitle1), FadeOut(numbering_next), group_to_ignore.animate.set_opacity(0), zd_rect.animate.set_opacity(1), zoomed_display_frame.animate.set_color(BLACK))

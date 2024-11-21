@@ -186,7 +186,6 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
 
         dot_bp = Dot(point=ax.coords_to_point(n_carbon, self.boiling_points[n_carbon-1]), radius=0.08*self.axes_scale)
         dot_mp = Dot(point=ax.coords_to_point(n_carbon, self.melting_points[n_carbon-1]), radius=0.08*self.axes_scale)
-        self.dots.add(dot_bp, dot_mp)
 
         scale_factor = 1
         if frame.get_corner(UR)[1] - point_next_bp[1] < self.zoomed_frame_pad:
