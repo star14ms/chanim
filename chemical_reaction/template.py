@@ -25,19 +25,22 @@ class TransformMatchingLocation(TransformMatchingShapes):
         min_ratio_possible_match: float = 0.33,
         min_ratio_to_accept_match: float = 0.9,
         match_same_key = False,
+        match_carbons = False,
         **kwargs,
     ):
         self.error_tolerance = error_tolerance
         self.min_ratio_possible_match = min_ratio_possible_match
         self.min_ratio_to_accept_match = min_ratio_to_accept_match
         self.match_same_location = match_same_location
+        self.match_same_key = match_same_key
+        self.match_carbons = match_carbons
 
         if isinstance(mobject, VMobject):
             group_type = VGroup
         else:
             group_type = Group
 
-        source_map, target_map, key_map, all_keys_source, source_map_values = self.get_key_maps(key_map, match_same_key, mobject, target_mobject)
+        source_map, target_map, key_map, all_keys_source, source_map_values = self.get_key_maps(key_map, mobject, target_mobject)
 
         # Create two mobjects whose submobjects all match each other
         # according to whatever keys are used for source_map and
@@ -153,20 +156,26 @@ class TransformMatchingLocation(TransformMatchingShapes):
 
     def original_scale(func):
         def wrapper(*args, **kwargs):
-            for arg in args[3:]: # Skip self
+            for arg in args[2:]: # Skip self
                 arg.scale(1 / getattr(arg, 'initial_scale_factor', 1))
             result = func(*args, **kwargs)
-            for arg in args[3:]:
+            for arg in args[2:]:
                 arg.scale(getattr(arg, 'initial_scale_factor', 1))
             return result
         return wrapper
 
     @original_scale
-    def get_key_maps(self, key_map, match_same_key, mobject, target_mobject):
+    def get_key_maps(self, key_map, mobject, target_mobject):
         source_map = self.get_shape_map(mobject)
         target_map = self.get_shape_map(target_mobject)
         
-        if match_same_key:
+        if self.match_carbons:
+            source_map_only_carbons = {key: value for key, value in source_map.items() if len(value.points) == 64}
+            target_map_only_carbons = {key: value for key, value in target_map.items() if len(value.points) == 64}
+            key_map = {key: value for key, value in zip(source_map_only_carbons.keys(), target_map_only_carbons.keys())}
+            all_keys_source = []
+            source_map_values = []
+        elif self.match_same_key:
             key_map = {key: key for key in source_map.keys() & target_map.keys()}
             all_keys_source = []
             source_map_values = []
