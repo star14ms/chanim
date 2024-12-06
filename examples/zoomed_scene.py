@@ -62,8 +62,8 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         # self.add(ax, labels, graph_bp, graph_mp)
         # return
 
-        t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next = self.add_dynamic_graph(ax, x0, n_carbons)
-        frame, _, _ = self.highlight_graph(ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp)
+        t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next = self.add_dynamic_graph(self, ax, x0, n_carbons)
+        frame, _, _ = self.highlight_graph(self, ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp)
         frame_offset = ax.get_corner(DL) - frame.get_corner(DL)
 
         for n_carbon in n_carbons[1:]:
@@ -100,7 +100,7 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         )
         return ax, labels
 
-    def add_dynamic_graph(self, ax: Axes, x0, n_carbons):
+    def add_dynamic_graph(self, self_scene, ax: Axes, x0, n_carbons):
         t = ValueTracker(x0)
 
         graph_bp = always_redraw(lambda: ax.plot(
@@ -123,35 +123,35 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         label_bp_next = Text(str(self.boiling_points[0]), font_size=48*self.axes_scale).next_to(h_line_bp, LEFT, buff=0.1).shift([0, 0.12, 0]) # Prevent Overlapping
         label_mp_next = Text(str(self.melting_points[0]), font_size=48*self.axes_scale).next_to(h_line_mp, LEFT, buff=0.1)
 
-        self.add(graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next)
+        self_scene.add(graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next)
 
         return t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next
 
-    def highlight_graph(self, ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp):
+    def highlight_graph(self, self_scene, ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp):
         label_bp_temp = Text('Boiling Point', font_size=48*self.axes_scale, color=RED).next_to(h_line_bp, LEFT, buff=0.1).shift([0, 0.12, 0])
         label_mp_temp = Text('Melting Point', font_size=48*self.axes_scale, color=BLUE).next_to(h_line_mp, LEFT, buff=0.1)
 
-        frame, zoomed_display_frame, zd_rect = self.use_zoomed_camera(ax, label_bp_temp)
+        frame, zoomed_display_frame, zd_rect = self.use_zoomed_camera(self_scene, ax, label_bp_temp)
 
-        self.play(FadeTransform(label_bp_next, label_bp_temp))
-        self.play(Indicate(label_bp_temp), Flash(dot_bp_moving))
-        self.play(FadeTransform(label_mp_next, label_mp_temp))
-        self.play(Indicate(label_mp_temp), Flash(dot_mp_moving))
-        self.play(FadeTransform(label_mp_temp, label_mp_next), FadeTransform(label_bp_temp, label_bp_next))
+        self_scene.play(FadeTransform(label_bp_next, label_bp_temp))
+        self_scene.play(Indicate(label_bp_temp), Flash(dot_bp_moving))
+        self_scene.play(FadeTransform(label_mp_next, label_mp_temp))
+        self_scene.play(Indicate(label_mp_temp), Flash(dot_mp_moving))
+        self_scene.play(FadeTransform(label_mp_temp, label_mp_next), FadeTransform(label_bp_temp, label_bp_next))
 
         point_middle_of_dots = (dot_bp_moving.get_center() + dot_mp_moving.get_center()) / 2
-        self.play(frame.animate.scale(5/6*0.66).move_to(point_middle_of_dots + [-0.2, 0.1, 0])) 
+        self_scene.play(frame.animate.scale(5/6*0.66).move_to(point_middle_of_dots + [-0.2, 0.1, 0])) 
 
         dot_bp = Dot(point=ax.coords_to_point(n_carbons[0], self.boiling_points[0]), radius=0.08*self.axes_scale)
         dot_mp = Dot(point=ax.coords_to_point(n_carbons[0], self.melting_points[0]), radius=0.08*self.axes_scale)
         self.dots.add(dot_bp, dot_mp)
-        self.play(FadeIn(dot_bp, dot_mp), zoomed_display_frame.animate.set_color(PURPLE), run_time=0.3)
+        self_scene.play(FadeIn(dot_bp, dot_mp), zoomed_display_frame.animate.set_color(PURPLE), run_time=0.3)
 
         return frame, zoomed_display_frame, zd_rect
  
-    def use_zoomed_camera(self, ax: Axes, label_bp_temp):
-        zoomed_camera = self.zoomed_camera
-        zoomed_display = self.zoomed_display
+    def use_zoomed_camera(self, self_scene, ax: Axes, label_bp_temp):
+        zoomed_camera = self_scene.zoomed_camera
+        zoomed_display = self_scene.zoomed_display
         frame = zoomed_camera.frame
         zoomed_display_frame = zoomed_display.display_frame
 
@@ -161,13 +161,13 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         zoomed_display_frame.set_color(RED)
 
         zd_rect = BackgroundRectangle(zoomed_display, fill_opacity=0, buff=MED_SMALL_BUFF)
-        self.add_foreground_mobject(zd_rect)
+        self_scene.add_foreground_mobject(zd_rect)
 
         # unfold_camera = UpdateFromFunc(zd_rect, lambda rect: rect.replace(zoomed_display))
 
-        self.play(Create(frame))
-        self.activate_zooming()
-        self.play(self.get_zoomed_display_pop_out_animation(), frame.animate.set_opacity(0)) # , unfold_camera
+        self_scene.play(Create(frame))
+        self_scene.activate_zooming()
+        self_scene.play(self_scene.get_zoomed_display_pop_out_animation(), frame.animate.set_opacity(0)) # , unfold_camera
 
         return frame, zoomed_display_frame, zd_rect
 

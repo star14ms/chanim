@@ -101,77 +101,84 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
         assert self.chemcode_initial is not None, 'chemcode_initial should be set in subclass'
         super().__init__(**kwargs)
 
-    def construct(self):
-        chemcode = self.chemcode_initial
-        print(f'number of C: 1 (+1C)')
-        title_next = VMobject()
-        for n, title_line in enumerate(self.molecules[0].split('\n')):
-            title_next.add(ChemObject(title_line, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate))
-        title_next.arrange(DOWN).to_edge(UP)
-        chem_next = ChemObject(chemcode, chemfig_params=self.chemfig_params)
-        numbering_next = self.carbon_numbering(chem_next)
+    def construct(self, self_obj, title_next=None, chem_next=None, numbering_next=None, chemcode=None):
+        if title_next is None:
+            chemcode = self_obj.chemcode_initial
+            print(f'number of C: 1 (+1C)')
+            title_next = VMobject()
+            for n, title_line in enumerate(self_obj.molecules[0].split('\n')):
+                title_next.add(ChemObject(title_line, font_size=64 if n == 0 else 48, substrings_to_isolate=self_obj.substrings_to_isolate))
+            title_next.arrange(DOWN).to_edge(UP)
+            chem_next = ChemObject(chemcode, chemfig_params=self_obj.chemfig_params)
+            numbering_next = self_obj.carbon_numbering(chem_next)
 
-        self.play(Write(title_next), Create(chem_next), run_time=1.0)
-        self.play(Write(numbering_next), run_time=0.5)
-        self.play(FadeToColor(numbering_next, WHITE), run_time=0.5)
-        self.wait(duration=0.5)
-        
-        animations = [VGroup(chem_next, numbering_next).animate.shift(UP * 0.5)]
+            self.play(Write(title_next), Create(chem_next), run_time=1.0)
+            self.play(Write(numbering_next), run_time=0.5)
+            self.play(FadeToColor(numbering_next, WHITE), run_time=0.5)
+            self.wait(duration=0.5)
+            animations = [VGroup(chem_next, numbering_next).animate.shift(UP * 0.5)]
+        else:
+            animations = []
 
-        if self.CONFIG['draw_graph']:
-            ax, labels = self.create_axes_and_labels(corner=DL, shift=RIGHT * 0.5)
+        if self_obj.CONFIG['draw_graph']:
+            ax, labels = self_obj.create_axes_and_labels(corner=DL, shift=RIGHT * 0.5)
             animations.extend([Write(ax), Write(labels)])
         else:
             ax, labels = None, None
 
-        if self.images[0] is None:
+        if self_obj.images[0] is None:
             image_next = None
         else:
-            image_next = self.build_next_image(self.images[0])
+            image_next = self_obj.build_next_image(self_obj.images[0])
             animations.append(FadeIn(image_next))
         self.play(LaggedStart(*animations, run_time=3, lag_ratio=0.5))
 
         x0 = 1
-        n_carbons = list(range(x0, self.max_n_carbons))
+        n_carbons = list(range(x0, self_obj.max_n_carbons))
         
-        if self.CONFIG['draw_graph']:
-            t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next = self.add_dynamic_graph(ax, x0, n_carbons)
-            frame, zoomed_display_frame, zd_rect = self.highlight_graph(ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp)
+        if self_obj.CONFIG['draw_graph']:
+            t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next = self_obj.add_dynamic_graph(self, ax, x0, n_carbons)
+            frame, zoomed_display_frame, zd_rect = self_obj.highlight_graph(self, ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp)
             frame_offset = ax.get_corner(DL) - frame.get_corner(DL)
         else:
             frame, zoomed_display_frame, zd_rect = None, None, None
             frame_offset = None
 
         image_path_prev = None
+        
+        if title_next is None:
+            zipped_iterables = zip(self_obj.molecules[1:], self_obj.number_of_C_list[1:], self_obj.images[1:])
+        else:
+            zipped_iterables = zip(self_obj.molecules, self_obj.number_of_C_list, self_obj.images)
 
-        for i, (molecule, n_carbon, image_path) in enumerate(zip(self.molecules[1:], self.number_of_C_list[1:], self.images[1:])):
+        for i, (molecule, n_carbon, image_path) in enumerate(zipped_iterables):
             title_prev = title_next
             chem_prev = chem_next
             numbering_prev = numbering_next
-            title_next, chem_next, numbering_next, chemcode = self.build_next_objects(molecule, n_carbon, chemcode, i)
+            title_next, chem_next, numbering_next, chemcode = self_obj.build_next_objects(molecule, n_carbon, chemcode, i)
 
             image_prev = image_next
             if image_path is not None and image_path != image_path_prev:
                 print(image_path, image_path_prev)
-                image_next = self.build_next_image(image_path, shift=RIGHT * 4 if n_carbon <= 30 else 0)
+                image_next = self_obj.build_next_image(image_path, shift=RIGHT * 4 if n_carbon <= 30 else 0)
                 image_path_prev = image_path
 
             if image_path is None:
                 anims_transform_img = []
             else:
-                anims_transform_img = self.build_animation_next_image(image_prev, image_next)
+                anims_transform_img = self_obj.build_animation_next_image(image_prev, image_next)
              
-            speed_factor = self.get_new_speed_factor(n_carbon)
+            speed_factor = self_obj.get_new_speed_factor(n_carbon)
 
-            if self.CONFIG['draw_graph']:
+            if self_obj.CONFIG['draw_graph']:
                 label_bp_prev = label_bp_next
                 label_mp_prev = label_mp_next
 
                 if n_carbon <= 30:
                     label_bp_next, label_mp_next, dot_bp, dot_mp, scale_factor, vector_to_shift = \
-                        self.build_next_graph_objects(ax, frame, n_carbon, frame_offset, h_line_bp, h_line_mp
+                        self_obj.build_next_graph_objects(ax, frame, n_carbon, frame_offset, h_line_bp, h_line_mp
                     )
-                    graph_animations = self.build_animation_next_graph(
+                    graph_animations = self_obj.build_animation_next_graph(
                         t, frame, n_carbon, vector_to_shift, scale_factor, 
                         label_bp_prev, label_bp_next, label_mp_prev, label_mp_next, dot_bp, dot_mp
                     )
@@ -185,17 +192,19 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
             else:
                 graph_animations = [[], [], []]
 
-            self.apply_next_objects(title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, n_carbon, frame, zoomed_display_frame, anims_transform_img, speed_factor=speed_factor)
+            self_obj.apply_next_objects(self, title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, n_carbon, frame, zoomed_display_frame, anims_transform_img, speed_factor=speed_factor)
             
-            if self.CONFIG['draw_graph']:
-                self.dots.add(dot_bp, dot_mp)
+            if self_obj.CONFIG['draw_graph']:
+                self_obj.dots.add(dot_bp, dot_mp)
 
             if n_carbon == 10:
-                group_to_ignore = VGroup(ax, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self.dots)
-                chem_next, numbering_next, image_next = self.transform_to_line_diagram_and_back(chem_next, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame, image_next)
+                group_to_ignore = VGroup(ax, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self_obj.dots)
+                chem_next, numbering_next, image_next = self_obj.transform_to_line_diagram_and_back(self, chem_next, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame, image_next)
+
+        return title_next, chem_next, numbering_next, chemcode
 
     def build_next_objects(self, molecule, n_carbon, chemcode, i):
-        chemcode = self.build_next_chemcode(n_carbon, i)
+        chemcode = self.build_next_chemcode(chemcode, n_carbon, i)
         title_next = VMobject()
         for n, title_line in enumerate(molecule.split('\n')):
             title_next.add(ChemObject(title_line, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate))
@@ -206,7 +215,7 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
 
         return title_next, chem_next, numbering_next, chemcode
 
-    def apply_next_objects(self, title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, n_carbon, frame, zoomed_display_frame, anims_transform_img, speed_factor=1.0):
+    def apply_next_objects(self, self_scene, title_prev, title_next, chem_prev, chem_next, numbering_prev, numbering_next, graph_animations, n_carbon, frame, zoomed_display_frame, anims_transform_img, speed_factor=1.0):
         animations1 = []
         for n in range(max(len(title_prev), len(title_next))):
             title_prev_line = title_prev[n] if len(title_prev) > n else ChemObject(title_prev[n-1].tex_string, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
@@ -222,31 +231,31 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
         animations2 = [Write(numbering_next_partial) for numbering_next_partial in numbering_next[len(numbering_prev):]]
 
         if n_carbon == 21:
-            self.play(self.get_zoomed_display_pop_out_animation(), rate_func=lambda t: smooth(1 - t), run_time=1.0 * speed_factor)
-            self.play(Uncreate(zoomed_display_frame), FadeOut(frame), run_time=1.0 * speed_factor)
+            self_scene.play(self_scene.get_zoomed_display_pop_out_animation(), rate_func=lambda t: smooth(1 - t), run_time=1.0 * speed_factor)
+            self_scene.play(Uncreate(zoomed_display_frame), FadeOut(frame), run_time=1.0 * speed_factor)
 
-        self.play([
+        self_scene.play([
             TransformMatchingLocation(chem_prev, chem_next, match_same_location=True, min_ratio_possible_match=0.01, match_same_key=self.CONFIG['match_same_key']), 
             *animations1,
             *anims_transform_img,
         ], run_time=1.5 * speed_factor)
-        self.play(*animations2, run_time=0.5 * speed_factor)
+        self_scene.play(*animations2, run_time=0.5 * speed_factor)
         if graph_animations[0] != []:
-            self.play(*graph_animations[0], run_time=0.5 * speed_factor)
-            self.play(*graph_animations[1], run_time=1.0 * speed_factor)
-        self.play([
+            self_scene.play(*graph_animations[0], run_time=0.5 * speed_factor)
+            self_scene.play(*graph_animations[1], run_time=1.0 * speed_factor)
+        self_scene.play([
             FadeToColor(VGroup(title_next, chem_next, numbering_next), WHITE),
             *graph_animations[2],
         ], run_time=0.5 * speed_factor)
-        self.remove(numbering_prev)
-        self.remove(title_prev)
-        self.wait(duration=0.5 * speed_factor)
+        self_scene.remove(numbering_prev)
+        self_scene.remove(title_prev)
+        self_scene.wait(duration=0.5 * speed_factor)
 
-    def transform_to_line_diagram_and_back(self, chem_next: Mobject, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame, image_next):
+    def transform_to_line_diagram_and_back(self, self_scene, chem_next: Mobject, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame, image_next):
         subtitle1 = Tex('Structural Formula', font_size=48, substrings_to_isolate=['Formula']).to_edge(DOWN)
         numbering_next.set_color(RED)
         chem_next_original_point = chem_next.get_center()
-        self.play(
+        self_scene.play(
             Write(subtitle1), 
             FadeOut(numbering_next, image_next), 
             group_to_ignore.animate.set_opacity(0), 
@@ -254,32 +263,32 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
             zoomed_display_frame.animate.set_color(BLACK), 
             chem_next.animate.move_to(ORIGIN)
         )
-        self.wait(duration=1)
+        self_scene.wait(duration=1)
 
         line_diagram_1 = ChemObject('-'.join(['C']*len(numbering_next)), auto_scale=False).scale(chem_next.initial_scale_factor)
         line_diagram_1.initial_scale_factor = chem_next.initial_scale_factor
-        self.play(TransformMatchingLocation(chem_next, line_diagram_1, min_ratio_possible_match=0.01, min_ratio_to_accept_match=0.3, match_same_location=True), run_time=1)
+        self_scene.play(TransformMatchingLocation(chem_next, line_diagram_1, min_ratio_possible_match=0.01, min_ratio_to_accept_match=0.3, match_same_location=True), run_time=1)
         # self.add_numbering(line_diagram_1, file_name='line_diagram_1')
 
         chemcode = '-[2]' + ''.join('-[22]' if n % 2 == 0 else '-[2]' for n in range(len(numbering_next)-2))
         line_diagram2 = ChemObject(chemcode, chemfig_params=self.chemfig_params, auto_scale=False)
         line_diagram2.scale(line_diagram_1.width / line_diagram2.width)
         subtitle2 = Tex('Skeletal Formula', font_size=48, substrings_to_isolate=['Formula']).to_edge(DOWN)
-        self.play(TransformMatchingLocation(line_diagram_1, line_diagram2, key_map=self.key_map_for_line_diagram), TransformMatchingTex(subtitle1, subtitle2), run_time=1.5)
+        self_scene.play(TransformMatchingLocation(line_diagram_1, line_diagram2, key_map=self.key_map_for_line_diagram), TransformMatchingTex(subtitle1, subtitle2), run_time=1.5)
         # self.add_numbering(line_diagram2, file_name='line_diagram')
-        self.wait(duration=1)
+        self_scene.wait(duration=1)
 
-        self.play(
+        self_scene.play(
             FadeOut(subtitle2), 
             TransformMatchingLocation(line_diagram2, line_diagram_1, color_fadeout='white', color_fadein='white'), 
         run_time=1.0)
         numbering_next.set_color(WHITE)
-        self.play(
+        self_scene.play(
             TransformMatchingLocation(
                 line_diagram_1, chem_next, min_ratio_possible_match=0.01, min_ratio_to_accept_match=0.3, match_same_location=True, 
                 color_fadeout='white', color_fadein='white'), 
         run_time=1),
-        self.play(FadeIn(numbering_next, image_next), group_to_ignore.animate.set_opacity(1), zd_rect.animate.set_opacity(0), zoomed_display_frame.animate.set_color(PURPLE), chem_next.animate.move_to(chem_next_original_point), run_time=0.5)
+        self_scene.play(FadeIn(numbering_next, image_next), group_to_ignore.animate.set_opacity(1), zd_rect.animate.set_opacity(0), zoomed_display_frame.animate.set_color(PURPLE), chem_next.animate.move_to(chem_next_original_point), run_time=0.5)
 
         return chem_next, numbering_next, image_next
 
@@ -302,7 +311,7 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
         # can be implemented in subclass
         return 1.0
 
-    def build_next_chemcode(self, n_carbon, i):
+    def build_next_chemcode(self, chemcode, n_carbon, i):
         # to be implemented in subclass
         assert False, 'This method should be implemented in subclass'
 
@@ -312,40 +321,40 @@ class Alkanes(SequentialReactionScene):
         'methane\nCH_{4}',
         'ethane\nC_{2}H_{6}',
         'propane\nC_{3}H_{8}',
-        'butane\nC_{4}H_{10}',
-        'pentane\nC_{5}H_{12}',
-        'hexane\nC_{6}H_{14}',
-        'heptane\nC_{7}H_{16}',
-        'octane\nC_{8}H_{18}',
-        'nonane\nC_{9}H_{20}',
-        'decane\nC_{10}H_{22}',
-        'undecane\nC_{11}H_{24}',
-        'dodecane\nC_{12}H_{26}',
-        'tridecane\nC_{13}H_{28}',
-        'tetradecane\nC_{14}H_{30}',
-        'pentadecane\nC_{15}H_{32}',
-        'hexadecane\nC_{16}H_{34}',
-        'heptadecane\nC_{17}H_{36}',
-        'octadecane\nC_{18}H_{38}',
-        'nonadecane\nC_{19}H_{40}',
-        'icosane\nC_{20}H_{42}',
-        'henicosane\nC_{21}H_{44}',
-        'docosane\nC_{22}H_{46}',
-        'tricosane\nC_{23}H_{48}',
-        'tetracosane\nC_{24}H_{50}',
-        'pentacosane\nC_{25}H_{52}',
-        'hexacosane\nC_{26}H_{54}',
-        'heptacosane\nC_{27}H_{56}',
-        'octacosane\nC_{28}H_{58}',
-        'nonacosane\nC_{29}H_{60}',
-        'triacontane\nC_{30}H_{62}',
-        'tetracontane\nC_{40}H_{82}',
-        'pentacontane\nC_{50}H_{102}',
-        'hexacontane\nC_{60}H_{122}',
-        'heptacontane\nC_{70}H_{142}',
-        'octacontane\nC_{80}H_{162}',
-        'nonacontane\nC_{90}H_{182}',
-        'hectane\nC_{100}H_{202}',
+        # 'butane\nC_{4}H_{10}',
+        # 'pentane\nC_{5}H_{12}',
+        # 'hexane\nC_{6}H_{14}',
+        # 'heptane\nC_{7}H_{16}',
+        # 'octane\nC_{8}H_{18}',
+        # 'nonane\nC_{9}H_{20}',
+        # 'decane\nC_{10}H_{22}',
+        # 'undecane\nC_{11}H_{24}',
+        # 'dodecane\nC_{12}H_{26}',
+        # 'tridecane\nC_{13}H_{28}',
+        # 'tetradecane\nC_{14}H_{30}',
+        # 'pentadecane\nC_{15}H_{32}',
+        # 'hexadecane\nC_{16}H_{34}',
+        # 'heptadecane\nC_{17}H_{36}',
+        # 'octadecane\nC_{18}H_{38}',
+        # 'nonadecane\nC_{19}H_{40}',
+        # 'icosane\nC_{20}H_{42}',
+        # 'henicosane\nC_{21}H_{44}',
+        # 'docosane\nC_{22}H_{46}',
+        # 'tricosane\nC_{23}H_{48}',
+        # 'tetracosane\nC_{24}H_{50}',
+        # 'pentacosane\nC_{25}H_{52}',
+        # 'hexacosane\nC_{26}H_{54}',
+        # 'heptacosane\nC_{27}H_{56}',
+        # 'octacosane\nC_{28}H_{58}',
+        # 'nonacosane\nC_{29}H_{60}',
+        # 'triacontane\nC_{30}H_{62}',
+        # 'tetracontane\nC_{40}H_{82}',
+        # 'pentacontane\nC_{50}H_{102}',
+        # 'hexacontane\nC_{60}H_{122}',
+        # 'heptacontane\nC_{70}H_{142}',
+        # 'octacontane\nC_{80}H_{162}',
+        # 'nonacontane\nC_{90}H_{182}',
+        # 'hectane\nC_{100}H_{202}',
 
         # 'dictane\nC_{200}H_{402}',
         # 'trictane\nC_{300}H_{602}',
@@ -421,7 +430,7 @@ class Alkanes(SequentialReactionScene):
         else:
             return 1.0
 
-    def build_next_chemcode(self, n_carbon, i):
+    def build_next_chemcode(self, chemcode, n_carbon, i):
         if i == 0:
             print(f'number of C: 2 (+1C)')
             chemcode = self.chemcode_secondary
@@ -441,8 +450,8 @@ class CycloAlkanes(SequentialReactionScene):
         'cyclobutane\nC_{4}H_{8}',
         'cyclopentane\nC_{5}H_{10}',
         'cyclohexane\nC_{6}H_{12}',
-        'cycloheptane\nC_{7}H_{14}',
-        'cyclooctane\nC_{8}H_{16}',
+        # 'cycloheptane\nC_{7}H_{14}',
+        # 'cyclooctane\nC_{8}H_{16}',
         # 'cyclononane\nC_{9}H_{18}',
         # 'cyclodecane\nC_{10}H_{20}',
         # 'cycloundecane\nC_{11}H_{22}',
@@ -503,9 +512,17 @@ class CycloAlkanes(SequentialReactionScene):
         else:
             return 1.0
 
-    def build_next_chemcode(self, n_carbon, i):
+    def build_next_chemcode(self, chemcode, n_carbon, i):
         print(f'number of C: {n_carbon} (+{n_carbon - self.number_of_C_list[i]}C)')
         chemcode_partial = ('C-' * n_carbon)[1:]
         chemcode = f'C*{n_carbon}({chemcode_partial})'
         
         return chemcode
+
+
+class AlkanesAndCycloAlkanes(AlkaneMeltingAndBoilingPointGraph):
+    def construct(self):
+        alkanes = Alkanes()
+        cycloalkanes = CycloAlkanes()
+        title_next, chem_next, numbering_next, chemcode = Alkanes.construct(self, alkanes)
+        CycloAlkanes.construct(self, cycloalkanes, title_next, chem_next, numbering_next, chemcode)
