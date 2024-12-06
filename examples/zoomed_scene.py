@@ -12,12 +12,12 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
     boiling_points = [
         -161.5, -88.6, -42.1, -0.5, 36.1, 68.7, 98.4, 125.6, 150.5, 174.1, 
         195.9, 216.3, 235.4, 253.6, 270.6, 286.9, 303, 316, 330, 344.1, 
-        359, 369, 381, 391, 401.9, 415, 428.1, 432, 441, 451, 
+        359, 369, 381, 391, 401.9, 415, 428.1, 432, 441, 451
     ]
     melting_points = [
         -182.6, -183, -187.6, -138.3, -129.7, -95.4, -90.5, -56.7, -53.5, -29.7, 
         -25.5, -9.6, -5.4, 5.9, 10.0, 18.2, 22.0, 28.2, 31.5, 36.5, 
-        40.4, 43.8, 47.4, 50.3, 53.3, 56.1, 58.8, 61.3, 63.7, 65.9, 
+        40.4, 43.8, 47.4, 50.3, 53.3, 56.1, 58.8, 61.3, 63.7, 65.9
     ]
     boiling_points = [int(x) for x in boiling_points]
     melting_points = [int(x) for x in melting_points]
@@ -55,14 +55,14 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         ax, labels = self.create_axes_and_labels(corner=DL)
         self.play(LaggedStart(Write(ax),  Write(labels), run_time=3, lag_ratio=0.5))
         x0 = 1
-        n_carbons = list(range(x0, self.max_n_carbons))
+        n_carbons = list(range(28, self.max_n_carbons+1))
 
         # graph_bp = ax.plot_line_graph(x_values=n_carbons, y_values=self.boiling_points, vertex_dot_radius=0.08*self.axes_scale, line_color=RED)
         # graph_mp = ax.plot_line_graph(x_values=n_carbons, y_values=self.melting_points, vertex_dot_radius=0.08*self.axes_scale, line_color=BLUE)
         # self.add(ax, labels, graph_bp, graph_mp)
         # return
 
-        _, _, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, _, _ = self.add_dynamic_graph(ax, x0, n_carbons)
+        t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next = self.add_dynamic_graph(ax, x0, n_carbons)
         frame, _, _ = self.highlight_graph(ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp)
         frame_offset = ax.get_corner(DL) - frame.get_corner(DL)
 
@@ -104,10 +104,10 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
         t = ValueTracker(x0)
 
         graph_bp = always_redraw(lambda: ax.plot(
-            lambda x: self.func_boiling_points(x), x_range=[x0, t.get_value()], color=RED
+            lambda x: self.func_boiling_points(x-1e-4), x_range=[x0, t.get_value()], color=RED
         ))
         graph_mp = always_redraw(lambda: ax.plot(
-            lambda x: self.func_melting_points(x), x_range=[x0, t.get_value()], color=BLUE
+            lambda x: self.func_melting_points(x-1e-4), x_range=[x0, t.get_value()], color=BLUE
         ))
         h_line_bp = always_redraw(lambda: get_horizontal_line_to_graph(
             axes=ax, function=graph_bp, x=t.get_value(), width=4, color=RED, dot_radius=0.08*self.axes_scale
@@ -116,16 +116,16 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
             axes=ax, function=graph_mp, x=t.get_value(), width=4, color=BLUE, dot_radius=0.08*self.axes_scale
         ))
         dot_bp_moving = Dot(point=ax.coords_to_point(n_carbons[0], self.boiling_points[0]), radius=0.08*self.axes_scale, color=RED)
-        dot_bp_moving.add_updater(lambda x: x.move_to(ax.c2p(t.get_value(), self.func_boiling_points(t.get_value()))))
+        dot_bp_moving.add_updater(lambda x: x.move_to(ax.c2p(t.get_value(), self.func_boiling_points(t.get_value()-1e-4))))
         dot_mp_moving = Dot(point=ax.coords_to_point(n_carbons[0], self.melting_points[0]), radius=0.08*self.axes_scale, color=BLUE)
-        dot_mp_moving.add_updater(lambda x: x.move_to(ax.c2p(t.get_value(), self.func_melting_points(t.get_value()))))
+        dot_mp_moving.add_updater(lambda x: x.move_to(ax.c2p(t.get_value(), self.func_melting_points(t.get_value()-1e-4))))
 
-        label_bp = Text(str(self.boiling_points[0]), font_size=48*self.axes_scale).next_to(h_line_bp, LEFT, buff=0.1).shift([0, 0.12, 0]) # Prevent Overlapping
-        label_mp = Text(str(self.melting_points[0]), font_size=48*self.axes_scale).next_to(h_line_mp, LEFT, buff=0.1)
+        label_bp_next = Text(str(self.boiling_points[0]), font_size=48*self.axes_scale).next_to(h_line_bp, LEFT, buff=0.1).shift([0, 0.12, 0]) # Prevent Overlapping
+        label_mp_next = Text(str(self.melting_points[0]), font_size=48*self.axes_scale).next_to(h_line_mp, LEFT, buff=0.1)
 
-        self.add(graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp, label_mp)
+        self.add(graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next)
 
-        return t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp, label_mp
+        return t, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next
 
     def highlight_graph(self, ax, n_carbons, label_bp_next, label_mp_next, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp):
         label_bp_temp = Text('Boiling Point', font_size=48*self.axes_scale, color=RED).next_to(h_line_bp, LEFT, buff=0.1).shift([0, 0.12, 0])
@@ -217,19 +217,17 @@ class AlkaneMeltingAndBoilingPointGraph(ZoomedScene):
 
     def func_boiling_points(self, x):
         x_prev = math.floor(x)
-        x_next = x_prev + 1
         y_prev = self.boiling_points[x_prev-1]
-        y_next = self.boiling_points[x_prev-1]
+        y_next = self.boiling_points[x_prev]
 
-        return calculate_y(x_prev, y_prev, x_next, y_next, x)
+        return calculate_y(x_prev, y_prev, x_prev+1, y_next, x)
 
     def func_melting_points(self, x):
         x_prev = math.floor(x)
-        x_next = x_prev + 1
         y_prev = self.melting_points[x_prev-1]
-        y_next = self.melting_points[x_prev-1]
+        y_next = self.melting_points[x_prev]
 
-        return calculate_y(x_prev, y_prev, x_next, y_next, x)
+        return calculate_y(x_prev, y_prev, x_prev+1, y_next, x)
 
 
 def calculate_y(x1, y1, x2, y2, x):

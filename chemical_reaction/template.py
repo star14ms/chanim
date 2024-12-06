@@ -24,6 +24,7 @@ class TransformMatchingLocation(TransformMatchingShapes):
         error_tolerance: float = 0.1,
         min_ratio_possible_match: float = 0.33,
         min_ratio_to_accept_match: float = 0.9,
+        match_same_key = False,
         **kwargs,
     ):
         self.error_tolerance = error_tolerance
@@ -35,8 +36,8 @@ class TransformMatchingLocation(TransformMatchingShapes):
             group_type = VGroup
         else:
             group_type = Group
-            
-        source_map, target_map, key_map, all_keys_source, source_map_values = self.get_key_maps(key_map, mobject, target_mobject)
+
+        source_map, target_map, key_map, all_keys_source, source_map_values = self.get_key_maps(key_map, match_same_key, mobject, target_mobject)
 
         # Create two mobjects whose submobjects all match each other
         # according to whatever keys are used for source_map and
@@ -152,20 +153,24 @@ class TransformMatchingLocation(TransformMatchingShapes):
 
     def original_scale(func):
         def wrapper(*args, **kwargs):
-            for arg in args[2:]: # Skip self
+            for arg in args[3:]: # Skip self
                 arg.scale(1 / getattr(arg, 'initial_scale_factor', 1))
             result = func(*args, **kwargs)
-            for arg in args[2:]:
+            for arg in args[3:]:
                 arg.scale(getattr(arg, 'initial_scale_factor', 1))
             return result
         return wrapper
 
     @original_scale
-    def get_key_maps(self, key_map, mobject, target_mobject):
+    def get_key_maps(self, key_map, match_same_key, mobject, target_mobject):
         source_map = self.get_shape_map(mobject)
         target_map = self.get_shape_map(target_mobject)
-
-        if key_map is None:
+        
+        if match_same_key:
+            key_map = {key: key for key in source_map.keys() & target_map.keys()}
+            all_keys_source = []
+            source_map_values = []
+        elif key_map is None:
             key_map = self.get_key_map(source_map, target_map) or {}
             all_keys_source = []
             source_map_values = []
