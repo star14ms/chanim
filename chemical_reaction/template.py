@@ -79,6 +79,13 @@ class TransformMatchingLocation(TransformMatchingShapes):
                 key_mapped_source.add(source_mob)
                 source_map.pop(key1, None)
 
+                if (id_dashed_cram := target_mob.__dict__.get('id_dashed_cram', None)) is not None and not isinstance(source_mob, Line):
+                    for key in target_map.copy():
+                        if target_map[key].__dict__.get('id_dashed_cram', None) == id_dashed_cram:
+                            anims.append(
+                                FadeTransformPieces(source_mob, target_map.pop(key), **kwargs),
+                            )
+
                 if all_keys_source != []:
                     if (id_dashed_cram := source_mob.__dict__.get('id_dashed_cram', None)) is not None:
                         key1_list_to_pop = []
@@ -102,6 +109,9 @@ class TransformMatchingLocation(TransformMatchingShapes):
                 #     target_map.pop(key2 + '-' + str(sub_idx), None)
                 #     sub_idx += 1
 
+        # print(key_mapped_source.submobjects)
+        # print(key_mapped_target.submobjects)
+        
         if len(key_mapped_source) > 0:
             anims.append(
                 FadeTransformPieces(key_mapped_source, key_mapped_target, **kwargs),
@@ -169,20 +179,21 @@ class TransformMatchingLocation(TransformMatchingShapes):
         source_map = self.get_shape_map(mobject)
         target_map = self.get_shape_map(target_mobject)
         
-        if self.match_carbons:
-            source_map_only_carbons = {key: value for key, value in source_map.items() if len(value.points) == 64}
-            target_map_only_carbons = {key: value for key, value in target_map.items() if len(value.points) == 64}
-            key_map = {key: value for key, value in zip(source_map_only_carbons.keys(), target_map_only_carbons.keys())}
-            all_keys_source = []
-            source_map_values = []
-        elif self.match_same_key:
-            key_map = {key: key for key in source_map.keys() & target_map.keys()}
-            all_keys_source = []
-            source_map_values = []
-        elif key_map is None:
-            key_map = self.get_key_map(source_map, target_map) or {}
-            all_keys_source = []
-            source_map_values = []
+        if key_map is None or key_map == {}:
+            if self.match_carbons:
+                source_map_only_carbons = {key: value for key, value in source_map.items() if len(value.points) == 64}
+                target_map_only_carbons = {key: value for key, value in target_map.items() if len(value.points) == 64}
+                key_map = {key: value for key, value in zip(source_map_only_carbons.keys(), target_map_only_carbons.keys())}
+                all_keys_source = []
+                source_map_values = []
+            elif self.match_same_key:
+                key_map = {key: key for key in source_map.keys() & target_map.keys()}
+                all_keys_source = []
+                source_map_values = []
+            else:
+                key_map = self.get_key_map(source_map, target_map) or {}
+                all_keys_source = []
+                source_map_values = []
         else:
             def add_keys(mobject: VMobject):
                 id_shape_map = 0

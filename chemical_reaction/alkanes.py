@@ -73,15 +73,19 @@ class PictureTransforms(Scene):
             
     def build_next_image(self, picture, edge=DOWN, shift=RIGHT * 4):
         image = ImageMobject(self.dir_images + '/' + picture)
-        image.set_height(self.image_max_height).to_edge(edge).shift(shift)
+        image.set(height=self.image_max_height).to_edge(edge).shift(shift)
+        if image.get_width() > self.image_max_width:
+            image.set(width=self.image_max_width)
 
         return image
 
-    def build_animation_next_image(self, image_prev: ImageMobject, image_next: ImageMobject):
-        if image_prev.pixel_array.shape != image_next.pixel_array.shape or not (image_prev.pixel_array == image_next.pixel_array).all():
-            return [FadeTransform(image_prev, image_next)]
-        else:
+    def build_animation_next_image(self, image_prev: ImageMobject, image_next: ImageMobject, image_path: str | None):
+        if image_prev is None or (image_next is not None and image_prev.pixel_array.shape == image_next.pixel_array.shape and (image_prev.pixel_array == image_next.pixel_array).all()):
             return []
+        elif image_path is None:
+            return [FadeOut(image_prev)]
+        else:
+            return [FadeTransform(image_prev, image_next)]
 
 
 class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, PictureTransforms):
@@ -91,6 +95,7 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
     substrings_to_isolate = []
     chemfig_params = {'angle increment': 15}
     key_map_for_line_diagram = {}
+    key_maps = {}
     n_carbon_to_remove_zoom_camera = 21
     n_carbon_to_keep_graph_until = 30
     CONFIG = {
@@ -102,6 +107,10 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
         assert self.molecules != [], 'molecules should be set in subclass'
         assert self.number_of_C_list != [], 'number_of_C_list should be set in subclass'
         assert self.chemcode_initial is not None, 'chemcode_initial should be set in subclass'
+        
+        if len(self.images) == 0:
+            self.images = [None] * len(self.molecules)
+
         super().__init__(**kwargs)
 
     def construct(self, self_scene=None, title_next=None, chem_next=None, numbering_next=None, chemcode=None, image_next=None):
@@ -125,17 +134,15 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
             print(n_carbon, chemcode)
 
             image_prev = image_next
-            if image_path is not None and image_path != image_path_prev:
-                print(image_path, image_path_prev)
-                image_next = self.build_next_image(image_path, shift=RIGHT * 4 if n_carbon <= self.n_carbon_to_keep_graph_until else 0)
+            if image_path is None:
+                image_next = None
+            elif image_path != image_path_prev:
+                image_next = self.build_next_image(image_path, shift=RIGHT * 4.8 if self.__class__.__name__ == 'CycloAlkanes' and n_carbon >= 6 else RIGHT * 4 if n_carbon <= self.n_carbon_to_keep_graph_until else 0)
                 image_path_prev = image_path
 
-            if image_path is None:
-                anims_transform_img = []
-            else:
-                anims_transform_img = self.build_animation_next_image(image_prev, image_next)
-             
-            speed_factor = self.get_new_speed_factor(n_carbon)
+            anims_transform_img = self.build_animation_next_image(image_prev, image_next, image_path)
+
+            speed_factor = self.get_new_speed_factor(molecule, n_carbon)
 
             if self.CONFIG['draw_graph']:
                 label_bp_prev = label_bp_next
@@ -150,7 +157,7 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
                         label_bp_prev, label_bp_next, label_mp_prev, label_mp_next, dot_bp, dot_mp
                     )
                 elif n_carbon == 40:
-                    group_to_ignore = VGroup(ax, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self_scene.dots)
+                    group_to_ignore = VGroup(ax, graph_bp, graph_mp, dot_bp_moving, dot_mp_moving, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self.dots)
                     self_scene.play(group_to_ignore.animate.set_opacity(0), run_time=1.0 * speed_factor)
                     self_scene.remove(group_to_ignore)
                     graph_animations = [[], [], []]
@@ -163,8 +170,8 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
             
             if self.CONFIG['draw_graph']:
                 self.dots.add(dot_bp, dot_mp)
-
-            if n_carbon == 10:
+            
+            if n_carbon == 10 and self.__class__.__name__ == 'Alkanes':
                 group_to_ignore = VGroup(ax, h_line_bp, h_line_mp, label_bp_next, label_mp_next, labels, self.dots)
                 chem_next, numbering_next, image_next = self.transform_to_line_diagram_and_back(self_scene, chem_next, numbering_next, group_to_ignore, zd_rect, zoomed_display_frame, image_next)
 
@@ -173,11 +180,12 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
     def initiate_scene(self, self_scene, title_next=None, chem_next=None, numbering_next=None, chemcode=None, image_next=None):
         if title_next is None:
             chemcode = self.chemcode_initial
-            print(f'number of C: 1 (+1C)')
+            print(f'number of C: {self.number_of_C_list[0]}')
             title_next = VMobject()
             for n, title_line in enumerate(self.molecules[0].split('\n')):
                 title_next.add(ChemObject(title_line, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate))
             title_next.arrange(DOWN).to_edge(UP)
+            title_next.name = self.molecules[0].split('\n')[0]
             chem_next = ChemObject(chemcode, chemfig_params=self.chemfig_params)
             numbering_next = self.carbon_numbering(chem_next)
 
@@ -186,8 +194,12 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
             self_scene.play(FadeToColor(numbering_next, WHITE), run_time=0.5)
             self_scene.wait(duration=0.5)
             animations = [VGroup(chem_next, numbering_next).animate.shift(UP * 0.5)]
-        elif image_next is not None:
-            animations = [FadeOut(image_next)]
+            
+            if self.images[0] is None:
+                image_next = None
+            else:
+                image_next = self.build_next_image(self.images[0])
+                animations.append(FadeIn(image_next))
         else:
             animations = []
 
@@ -197,14 +209,8 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
         else:
             ax, labels = None, None
 
-        if self.images[0] is None:
-            image_next = None
-        else:
-            image_next = self.build_next_image(self.images[0])
-            animations.append(FadeIn(image_next))
-            
         if len(animations) > 0:
-            self_scene.play(LaggedStart(*animations, run_time=3, lag_ratio=0.5))
+            self_scene.play(LaggedStart(*animations, run_time=3 if len(animations) > 1 else 1, lag_ratio=0.5))
 
         x0 = 1
         n_carbons = list(range(x0, self.max_n_carbons))
@@ -225,11 +231,12 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
         return chemcode, title_next, chem_next, numbering_next, image_next, ax, graph_components_main, frame_offset, graph_components, labels, image_path_prev
 
     def build_next_objects(self, molecule, n_carbon, chemcode, i):
-        chemcode = self.build_next_chemcode(chemcode, n_carbon, i)
+        chemcode = self.build_next_chemcode(molecule, n_carbon, chemcode, i)
         title_next = VMobject()
         for n, title_line in enumerate(molecule.split('\n')):
             title_next.add(ChemObject(title_line, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate))
         title_next.arrange(DOWN).to_edge(UP)
+        title_next.name = molecule.split('\n')[0]
         
         chem_next = ChemObject(chemcode, chemfig_params=self.chemfig_params)
         if chem_next.height > 3.0:
@@ -247,21 +254,42 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
             title_prev_line = title_prev[n] if len(title_prev) > n else ChemObject(title_prev[n-1].tex_string, font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate).to_edge(UP)
             title_next_line = title_next[n] if len(title_next) > n else ChemObject('', font_size=64 if n == 0 else 48, substrings_to_isolate=self.substrings_to_isolate)
             animations1.append(TransformMatchingElementTex(title_prev_line, title_next_line))
+            
+        numbering_prev_parts = numbering_prev.submobjects
+        numbering_next_parts = numbering_next.submobjects
+        # numbering_prev_parts = TransformMatchingShapes.get_mobject_parts(numbering_prev)
+        # numbering_next_parts = TransformMatchingShapes.get_mobject_parts(numbering_next)
+        
+        # animations2 = []
+        # for n in range(max(len(numbering_prev_parts), len(numbering_next_parts))):
+        #     if len(numbering_prev_parts) < n and len(numbering_next_parts) < n:
+        #         animations1.append(Transform(numbering_prev_parts[n], numbering_next_parts[n]))
+        #     elif len(numbering_prev_parts) < n:
+        #         numbering_prev_parts[n].set_color(RED)
+        #         animations1.append(FadeOut(numbering_prev_parts[n]))
+        #     elif len(numbering_next_parts) < n:
+        #         animations2.append(Write(numbering_next_parts[n]))
+
+        numbering_prev_to_remove = VGroup()
+        for numbering_prev_item in numbering_prev_parts[len(numbering_next):]:
+            numbering_prev_to_remove.add(numbering_prev_item)
+        numbering_prev_to_remove.set_color(RED)
+        animations1.append(FadeOut(numbering_prev_to_remove))
 
         animations1.extend([
-            Transform(numbering_prev_part, numbering_next_part) for numbering_prev_part, numbering_next_part in zip(
-                TransformMatchingShapes.get_mobject_parts(numbering_prev), 
-                TransformMatchingShapes.get_mobject_parts(numbering_next)
-            )
+            Transform(numbering_prev_part, numbering_next_part) for numbering_prev_part, numbering_next_part in zip(numbering_prev_parts, numbering_next_parts)
         ])
         animations2 = [Write(numbering_next_partial) for numbering_next_partial in numbering_next[len(numbering_prev):]]
 
         if n_carbon == self.n_carbon_to_remove_zoom_camera:
             self_scene.play(self_scene.get_zoomed_display_pop_out_animation(), rate_func=lambda t: smooth(1 - t), run_time=1.0 * speed_factor)
             self_scene.play(Uncreate(zoomed_display_frame), FadeOut(frame), run_time=1.0 * speed_factor)
+        
+        if (key_map := self.key_maps.get(title_prev.name, None)) is not None:
+            key_map = key_map.get(title_next.name, None)
 
         self_scene.play([
-            TransformMatchingLocation(chem_prev, chem_next, match_same_location=True, min_ratio_possible_match=0.01, match_same_key=self.CONFIG['match_same_key'], match_carbons=True if len(animations2) == 0 else False), 
+            TransformMatchingLocation(chem_prev, chem_next, match_same_location=True, key_map=key_map, in_ratio_possible_match=0.01, match_same_key=self.CONFIG['match_same_key'], match_carbons=True if len(animations2) == 0 else False), 
             *animations1,
             *anims_transform_img,
         ], run_time=1.5 * speed_factor)
@@ -274,7 +302,7 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
             FadeToColor(VGroup(title_next, chem_next, numbering_next), WHITE),
             *graph_animations[2],
         ], run_time=0.5 * speed_factor)
-        self_scene.remove(numbering_prev)
+        self_scene.remove(numbering_prev, *numbering_prev_parts)
         self_scene.remove(title_prev)
         self_scene.wait(duration=0.5 * speed_factor)
 
@@ -334,11 +362,11 @@ class SequentialReactionScene(ReactionScene, AlkaneMeltingAndBoilingPointGraph, 
 
         return numbering
 
-    def get_new_speed_factor(self, n_carbon):
+    def get_new_speed_factor(self, molecule, n_carbon):
         # can be implemented in subclass
         return 1.0
 
-    def build_next_chemcode(self, chemcode, n_carbon, i):
+    def build_next_chemcode(self, molecule, n_carbon, chemcode, i):
         # to be implemented in subclass
         assert False, 'This method should be implemented in subclass'
 
@@ -444,9 +472,11 @@ class Alkanes(SequentialReactionScene):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def get_new_speed_factor(self, n_carbon):
+    def get_new_speed_factor(self, molecule, n_carbon):
         if n_carbon >= 31:
-            return 0.56
+            return 0.50
+        # elif n_carbon >= 25:
+        #     return 0.24
         elif n_carbon >= 21:
             return 0.36
         elif n_carbon >= 13:
@@ -458,8 +488,11 @@ class Alkanes(SequentialReactionScene):
         else:
             return 1.0
 
-    def build_next_chemcode(self, chemcode, n_carbon, i):
-        if i == 0:
+    def build_next_chemcode(self, molecule, n_carbon, chemcode, i):
+        if n_carbon == 1:
+            print(f'number of C: 1 (+1C)')
+            chemcode = self.chemcode_initial
+        elif n_carbon == 2:
             print(f'number of C: 2 (+1C)')
             chemcode = self.chemcode_secondary
         else:
@@ -474,6 +507,7 @@ class Alkanes(SequentialReactionScene):
 
 class CycloAlkanes(SequentialReactionScene):
     molecules = [
+        'propane\nC_{3}H_{8}',
         'cyclopropane\nC_{3}H_{6}',
         'cyclobutane\nC_{4}H_{8}',
         'cyclopentane\nC_{5}H_{10}',
@@ -481,51 +515,144 @@ class CycloAlkanes(SequentialReactionScene):
         'cycloheptane\nC_{7}H_{14}',
         'cyclooctane\nC_{8}H_{16}',
         'cyclononane\nC_{9}H_{18}',
-        # 'cyclodecane\nC_{10}H_{20}',
+        'cyclodecane\nC_{10}H_{20}',
+        'cycloicosane\nC_{20}H_{40}',
+        'cyclotriacontane\nC_{30}H_{60}',
+        'cyclotetracontane\nC_{40}H_{80}',
+        'cyclopentacontane\nC_{50}H_{100}',
+        'cyclohexacontane\nC_{60}H_{120}',
+        'cycloheptacontane\nC_{70}H_{140}',
+        'cyclooctacontane\nC_{80}H_{160}',
+        'cyclononacontane\nC_{90}H_{180}',
+        'cyclohectacontane\nC_{100}H_{200}',
     ]
-    images = []
-    number_of_C_list = list(range(3, 30)) + list(range(30, 101, 10))
-    chemcode_partial = ''.join([f'C(<[:{360/3+360/3*n+120-15}]H)(<:[:{360/3+360/3*n+120+15}]H)-' for n in range(3)])[1:]
-    chemcode_initial = f'C*3({chemcode_partial})'
-    substrings_to_isolate = ['ane', 'dec', 'cos', 'cont', '(', ')', 'cyclo']
+    images = [
+        'C1to4_cooking2.jpeg',
+        'cyclo_C3_anesthetic.webp',
+        'cyclo_C4_ladderane.png',
+        'cyclo_C5_Polyurethane_Products.png',
+        'cyclo_C6_nylon.jpg',
+        'cyclo_C7_medication.jpg',
+        'cyclo_C8_homogeneous catalysis.png',
+        'cyclo_C9_1,4,7-triazacyclononane.png',
+        'cyclo_C10_nylon12.jpeg',
+        'cyclo_C20_bio-pesticides.jpeg',
+        'cyclo_C30.png',
+        'cyclo_C30.png',
+        'cyclo_C50.webp',
+        'cyclo_C50.webp',
+        'cyclo_C70.jpeg',
+        'cyclo_C70.jpeg',
+        'cyclo_C90_The_Mad_Science.webp',
+        'cyclo_C90_The_Mad_Science.webp',
+    ]
+    number_of_C_list = [3] + list(range(3, 10)) + list(range(10, 101, 10))
+    chemcode_partial = '-C(-[6]H)(-[18]H)'
+    chemcode_initial = f'C(-[6]H)(-[12]H)(-[18]H){chemcode_partial}-C(-[0]H)(-[6]H)(-[18]H)'
+    substrings_to_isolate = ['ane', 'dec', 'cos', 'cont', '(', ')', 'cyclo', 'prop']
     chemfig_params = {'angle increment': 15}
     key_map_for_line_diagram = {2 * i: i - 1 for i in range(1, number_of_C_list[-1])}
+    key_maps = {
+        'propane': {
+            'cyclopropane': {
+                0: 0,
+                1: 1,
+                2: 2,
+                5: 3,
+                6: 9,
+                7: 10,
+                8: 11,
+                9: 12,
+                10: 13,
+                11: 14,
+                12: 20,
+                13: 21,
+                14: 22,
+                17: 23,
+                18: 24,
+                19: 25,
+                20: 31,
+                16: 32,
+            }
+        }
+    }
     CONFIG = {
         'match_same_key': True,
         'draw_graph': False,
     }
 
     def __init__(self, **kwargs):
-        if len(self.images) == 0:
-            self.images = [None] * len(self.molecules)
         super().__init__(**kwargs)
 
-    def get_new_speed_factor(self, n_carbon):
+    def get_new_speed_factor(self, molecule, n_carbon):
         if n_carbon == 3:
-            return 1.5
+            if molecule == 'propane\nC_{3}H_{8}':
+                return 1.2
+            return 1.0
+        elif n_carbon < 12:
+            return 0.40
         else:
             return 0.36
 
-    def build_next_chemcode(self, chemcode, n_carbon, i):
+    def build_next_chemcode(self, molecule, n_carbon, chemcode, i):
         print(f'number of C: {n_carbon} (+{n_carbon - self.number_of_C_list[i]}C)')
-        chemcode_partial = ''.join([f'C(<[:{360/n_carbon+360/n_carbon*n+155-15}]H)(<:[:{360/n_carbon+360/n_carbon*n+155+15}]H)-' for n in range(n_carbon)])[1:]
-        chemcode = f'C*{n_carbon}({chemcode_partial})'
+
+        if molecule == 'propane\nC_{3}H_{8}':
+            return self.chemcode_initial
+
+        unit = round(360/n_carbon, 2)
+        chemcode = ''.join([f'C(<[:{unit*(n+1)+(360-unit)/2-15}]H)(<:[:{unit*(n+1)+(360-unit)/2+15}]H)-[:{(n+1)*unit+270},{1 if n != n_carbon-1 else 0.70}]' for n in range(n_carbon)])
 
         return chemcode
 
 
 class AlkanesAndCycloAlkanes(AlkaneMeltingAndBoilingPointGraph):
+    def measure_running_time(func, *args, **kwargs):
+        def wrapper(*args, **kwargs):
+            time_start = perf_counter()
+            func(*args, **kwargs)
+            time_end = perf_counter()
+            total_time = time_end - time_start
+            hours, remainder = divmod(total_time, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            print(f'Total time: {int(hours)}h:{int(minutes)}m:{seconds:.2f}s')
+        return wrapper
+
+    @measure_running_time
     def construct(self):
-        time_start = perf_counter()
         alkanes = Alkanes()
         cycloalkanes = CycloAlkanes()
 
-        title_next, chem_next, numbering_next, chemcode, image_next = Alkanes.construct(alkanes, self)
-        CycloAlkanes.construct(cycloalkanes, self, title_next, chem_next, numbering_next, chemcode, image_next)
-        
-        time_end = perf_counter()
+        prev_objects = Alkanes.construct(alkanes, self)
+        self.wait(duration=2.0)
+        prev_objects = CycloAlkanes.construct(cycloalkanes, self, *prev_objects)
 
-        total_time = time_end - time_start
-        hours, remainder = divmod(total_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        print(f'Total time: {int(hours)}h:{int(minutes)}m:{seconds:.2f}s')
+        alkanes.molecules = [
+            'methane\nCH_{4}',
+        ]
+        alkanes.images = [None]
+        alkanes.CONFIG = {
+            'match_same_key': False,
+            'draw_graph': False,
+        }
+        self.wait(duration=2.0)
+        title_next, chem_next, numbering_next, chemcode, image_next = Alkanes.construct(alkanes, self, *prev_objects)
+        self.play(VGroup(chem_next, numbering_next).animate.shift(DOWN * 0.5), run_time=1.0)
+        self.wait(duration=3.0)
+
+
+class Propane(ReactionScene):
+    def construct(self):
+        chem1 = ChemObject(CycloAlkanes.chemcode_initial, chemfig_params={'angle increment': 15})
+        self.add(chem1)
+        self.add_numbering(chem1, file_name='propane')
+
+        unit = round(360/3, 2)
+        chemcode = ''.join([f'C(<[:{unit*(n+1)+(360-unit)/2-15}]H)(<:[:{unit*(n+1)+(360-unit)/2+15}]H)-[:{(n+1)*unit+270},{1 if n != 3-1 else 0.70}]' for n in range(3)])
+        self.remove(chem1)
+ 
+        chem2 = ChemObject(chemcode, chemfig_params={'angle increment': 15})
+        self.add(chem2)
+        self.add_numbering(chem2, file_name='cyclopropane')
+        
+        # self.play(TransformMatchingLocation(chem1, chem2, match_same_location=True, key_map=CycloAlkanes.key_maps['propane']['cyclopropane'], in_ratio_possible_match=0.01))
